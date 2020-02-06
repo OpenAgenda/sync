@@ -1,0 +1,13 @@
+.idea/
+.vscode/
+node_modules/
+npm-debug.log
+yarn-error.log
+testconfig.js
+coverage/
+.cache/
+dist/
+
+src/**/data
+src/**/db
+src/**/logs

@@ -1,0 +1,17 @@
+{
+  "name": "@openagenda/sync",
+  "version": "4.0.5",
+  "main": "index.js",
+  "repository": "",
+  "author": "Bertho <kevin.bertho@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "@openagenda/logs": "^1.0.15",
+    "@openagenda/sdk-js": "^1.2.4",
+    "axios": "^0.18.0",
+    "lodash": "^4.17.5",
+    "mkdirp": "^0.5.1",
+    "moment": "^2.20.1",
+    "nedb": "^1.8.0"
+  }
+}
