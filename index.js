@@ -169,7 +169,7 @@ async function synchronize(options) {
   const oa = new OaSdk({ secretKey });
   await oa.connect();
 
-  const oaLocations = await listOaLocations(agendaUid);
+  const oaLocations = await listOaLocations(agendaUid, log);
   const formSchema = await getFormSchema({ agendaUid, publicKey });
 
   const limit = 20;
