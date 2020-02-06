@@ -9,7 +9,7 @@
     "@openagenda/logs": "^1.0.15",
     "@openagenda/sdk-js": "^1.2.4",
     "axios": "^0.18.0",
-    "lodash": "^4.17.5",
+    "lodash": "^4.17.13",
     "mkdirp": "^0.5.1",
     "moment": "^2.20.1",
     "nedb": "^1.8.0"
