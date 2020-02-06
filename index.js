@@ -1,6 +1,6 @@
 'use strict';
 
-const { readdirSync, writeFileSync, unlinkSync, renameSync } = require('fs');
+const { readdirSync, writeFileSync, unlinkSync } = require('fs');
 const { inspect } = require('util');
 const path = require('path');
 const _ = require('lodash');
@@ -14,6 +14,19 @@ const promisifyStore = require('./utils/promisifyStore');
 const getFormSchema = require('./getFormSchema');
 const listOaLocations = require('./listOaLocations');
 const listSavedEvents = require('./listSavedEvents');
+
+function getCircularReplacer() {
+  const seen = new WeakSet();
+  return (key, value) => {
+    if (typeof value === "object" && value !== null) {
+      if (seen.has(value)) {
+        return;
+      }
+      seen.add(value);
+    }
+    return value;
+  };
+};
 
 
 // Defauts
@@ -171,7 +184,7 @@ async function synchronize(options) {
   /* PHASE 1: compare to existent events */
   while ((savedEvents = await listSavedEvents(directory, offset, limit)) && savedEvents.length) {
     for (let i = 0; i < savedEvents.length; i++) {
-      const event = savedEvents[i];
+      const { filename, event } = savedEvents[i];
 
       try {
         const eventId = methods.event.getId(event);
@@ -179,7 +192,7 @@ async function synchronize(options) {
 
         if (!mappedEvent) {
           if (!simulate) {
-            unlinkSync(path.join(directory, 'data', `event.${offset + i}.json`));
+            unlinkSync(path.join(directory, 'data', filename));
           }
 
           continue;
@@ -334,15 +347,12 @@ async function synchronize(options) {
             }
           }
         }
-
-        if (!simulate) {
-          unlinkSync(path.join(directory, 'data', `event.${offset + i}.json`));
-        }
-      } catch (e) {
-        log('error', e.response && e.response.body ? e.response.body : e);
-        renameSync(
-          path.join(directory, 'data', `event.${offset + i}.json`),
-          path.join(directory, 'errors', `${startSyncDate.toISOString()}:event.${offset + i}.json`)
+      } catch (error) {
+        log('error', error);
+        unlinkSync(path.join(directory, 'data', filename));
+        writeFileSync(
+          path.join(directory, 'errors', `${startSyncDate.toISOString()}:${filename}`),
+          JSON.stringify({ error, event }, getCircularReplacer(), 2)
         );
       }
     }
