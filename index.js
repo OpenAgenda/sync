@@ -1,6 +1,6 @@
 'use strict';
 
-const { readdirSync, writeFileSync, unlinkSync } = require('fs');
+const { readdirSync, writeFileSync, unlinkSync, renameSync } = require('fs');
 const { inspect } = require('util');
 const path = require('path');
 const _ = require('lodash');
@@ -67,6 +67,7 @@ module.exports = async function syncTask(options) {
   const stats = {};
 
   mkdirp.sync(path.join(directory, 'data'));
+  mkdirp.sync(path.join(directory, 'errors'));
   mkdirp.sync(path.join(directory, 'db'));
 
   try {
@@ -339,7 +340,10 @@ async function synchronize(options) {
         }
       } catch (e) {
         log('error', e.response && e.response.body ? e.response.body : e);
-        offset += 1; // pass erroned at next loops
+        renameSync(
+          path.join(directory, 'data', `event.${offset + i}.json`),
+          path.join(directory, 'errors', `${startSyncDate.toISOString()}:event.${offset + i}.json`)
+        );
       }
     }
 

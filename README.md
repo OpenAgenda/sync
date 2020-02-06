@@ -98,7 +98,7 @@ C'est le fichier qui exporte la fonction de synchronisation, elle peut être app
 
 #### Paramétrages généraux
 
- * `directory`: la racine où sera stockée la base locale (dossier db) ainsi que les fichiers temporaires (dossier data)
+ * `directory`: la racine où sera stockée la base locale (dossier db), les fichiers temporaires (dossier data) ainsi que les fichiers d'erreurs (dossier errors)
  * `agenda`: objet contenant l'identifiant de l'agenda `{ uid }`
  * `noBailOnInvalidImage`: lorsque un lien d'image invalide est fourni sur la source, celui ci n'interromp pas la synchro de l'événement par le script. Par défaut à `false`
  * `defaultImageUrl`: fournir une image par défaut lorsqu'aucune image n'est disponible en source
