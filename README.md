@@ -39,15 +39,15 @@ La structure attendue est la suivante:
 
 module.exports = {
   agenda: {
-      uid: 12345678
-    },
-    publicKey: 'dc70c13e0433737840e2b3f929dec79b',
-    secretKey: '1a65e1e45defbb0911fb6f60c848453f',
-    opencageKey: '0064ca2aab37b6ec21916f13a2dd1eb6',
-    noBailOnInvalidImage: true,
-    // downloadOnly: true,
-    // simulate: true,
-    // forceUpdate: true
+    uid: 12345678
+  },
+  publicKey: 'dc70c13e0433737840e2b3f929dec79b',
+  secretKey: '1a65e1e45defbb0911fb6f60c848453f',
+  opencageKey: '0064ca2aab37b6ec21916f13a2dd1eb6',
+  noBailOnInvalidImage: true,
+  // downloadOnly: true,
+  // simulate: true,
+  // forceUpdate: true
 };
 ```
 
