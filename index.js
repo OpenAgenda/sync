@@ -1,6 +1,6 @@
 'use strict';
 
-const { readdirSync, writeFileSync, unlinkSync } = require('fs');
+const { readdirSync, writeFileSync, readFileSync, unlinkSync } = require('fs');
 const { inspect } = require('util');
 const path = require('path');
 const _ = require('lodash');
@@ -172,9 +172,6 @@ async function synchronize(options) {
   const oaLocations = await listOaLocations(agendaUid, log);
   const formSchema = await getFormSchema({ agendaUid, publicKey });
 
-  const limit = 20;
-  let savedEvents;
-  let offset = 0;
   const changes = {
     create: [],
     update: []
@@ -182,188 +179,183 @@ async function synchronize(options) {
   const ignoredDeletes = [];
 
   /* PHASE 1: compare to existent events */
-  while ((savedEvents = await listSavedEvents(directory, offset, limit)) && savedEvents.length) {
-    for (let i = 0; i < savedEvents.length; i++) {
-      const { filename, event } = savedEvents[i];
+  const filenames = listSavedEvents(directory);
 
-      try {
-        const eventId = methods.event.getId(event);
-        let mappedEvent = await methods.event.map(event, formSchema, oaLocations);
+  for (let i = 0; i < filenames.length; i++) {
+    const filename = filenames[i];
 
-        if (!mappedEvent) {
-          if (!simulate) {
-            unlinkSync(path.join(directory, 'data', filename));
-          }
+    log.info(`Dispatch ${filename} (${i+1}/${filenames.length})`);
 
-          continue;
+    const event = JSON.parse(readFileSync(path.join(directory, 'data', filename), 'utf8'));
+
+    try {
+      const eventId = methods.event.getId(event);
+      let mappedEvent = await methods.event.map(event, formSchema, oaLocations);
+
+      if (!mappedEvent) {
+        if (!simulate) {
+          unlinkSync(path.join(directory, 'data', filename));
         }
 
-        for (const eventLocation of mappedEvent.locations) {
-          let syncEvent = null;
+        continue;
+      }
 
-          try {
-            let location;
-            const locationId = methods.location.getId(eventLocation, event);
-            const foundOaLocation = methods.location.find(oaLocations, eventLocation);
-            let foundLocation = (await syncDb.locations.findOne({ query: { correspondenceId: locationId } }));
+      for (const eventLocation of mappedEvent.locations) {
+        let syncEvent = null;
 
-            // This is commented because the oaLocations is not up to date (mySQL <-> ES)
-            // if (
-            //   foundLocation && !foundOaLocation
-            //   && !oaLocations.find( oaLocation => oaLocation.uid === foundLocation.data.uid )
-            // ) {
-            //   await syncDb.locations.remove( { _id: foundLocation._id }, {} );
-            //   foundLocation = null;
-            // }
+        try {
+          let location;
+          const locationId = methods.location.getId(eventLocation, event);
+          const foundOaLocation = methods.location.find(oaLocations, eventLocation);
+          let foundLocation = (await syncDb.locations.findOne({ query: { correspondenceId: locationId } }));
 
-            if (!foundLocation) {
-              if (!foundOaLocation) {
-                const mappedLocation = await methods.location.map(
-                  await methods.location.get(locationId, eventLocation),
-                  eventLocation
-                );
-                location = mappedLocation;
+          // This is commented because the oaLocations is not up to date (mySQL <-> ES)
+          // if (
+          //   foundLocation && !foundOaLocation
+          //   && !oaLocations.find( oaLocation => oaLocation.uid === foundLocation.data.uid )
+          // ) {
+          //   await syncDb.locations.remove( { _id: foundLocation._id }, {} );
+          //   foundLocation = null;
+          // }
 
-                if (!simulate) {
-                  location = await oa.locations.create(agendaUid, mappedLocation);
+          if (!foundLocation) {
+            if (!foundOaLocation) {
+              const mappedLocation = await methods.location.map(
+                await methods.location.get(locationId, eventLocation),
+                eventLocation
+              );
+              location = mappedLocation;
 
-                  await syncDb.locations.insert({
-                    correspondenceId: locationId,
-                    syncedAt: new Date(),
-                    data: location
-                  });
-                }
+              if (!simulate) {
+                location = await oa.locations.create(agendaUid, mappedLocation);
 
-                log(
-                  'info',
-                  'LOCATION NOT FOUND => created',
-                  { eventId, locationId, location }
-                );
-                upStats(stats, 'createdLocations');
-              } else {
                 await syncDb.locations.insert({
                   correspondenceId: locationId,
                   syncedAt: new Date(),
-                  data: foundOaLocation
+                  data: location
                 });
-
-                location = foundOaLocation;
               }
-            } else {
-              location = foundLocation.data;
-            }
 
-            delete mappedEvent.locations;
-            mappedEvent.locationUid = location.uid;
-
-            const correspondenceId = `${eventId}.${locationId}`;
-
-            const syncEvents = await syncDb.events.find({ query: { correspondenceId } });
-            syncEvent = syncEvents[0];
-
-            if (syncEvents.length) {
-              const indexListUpdate = changes.update.findIndex(
-                v => v.correspondenceId === correspondenceId
+              log(
+                'info',
+                'LOCATION NOT FOUND => created',
+                { eventId, locationId, location }
               );
-
-              if (indexListUpdate !== -1) {
-                const itemToUpdate = changes.update[indexListUpdate];
-
-                itemToUpdate.rawEvents.push(event);
-
-                itemToUpdate.data = {
-                  ...mappedEvent,
-                  timings: _.uniqWith(
-                    _.concat(itemToUpdate.data.timings, mappedEvent.timings)
-                      .map(v => ({
-                        begin: moment(v.begin).toISOString(),
-                        end: moment(v.end).toISOString()
-                      })),
-                    _.isEqual
-                  )
-                };
-              } else {
-                changes.update.push({
-                  correspondenceId,
-                  eventId,
-                  locationId,
-                  data: { ...mappedEvent },
-                  rawEvents: [event]
-                });
-              }
+              upStats(stats, 'createdLocations');
             } else {
-              const indexListCreate = changes.create.findIndex(
-                v => v.correspondenceId === correspondenceId
-              );
+              await syncDb.locations.insert({
+                correspondenceId: locationId,
+                syncedAt: new Date(),
+                data: foundOaLocation
+              });
 
-              if (indexListCreate !== -1) {
-                // merge timings and update the event(s) to update
-                const itemToCreate = changes.create[indexListCreate];
-
-                itemToCreate.rawEvents.push(event);
-
-                itemToCreate.data = {
-                  ...mappedEvent,
-                  timings: _.uniqWith(
-                    _.concat(itemToCreate.data.timings, mappedEvent.timings)
-                      .map(v => ({
-                        begin: moment(v.begin).toISOString(),
-                        end: moment(v.end).toISOString()
-                      })),
-                    _.isEqual
-                  )
-                };
-              } else {
-                changes.create.push({
-                  correspondenceId,
-                  eventId,
-                  locationId,
-                  data: { ...mappedEvent },
-                  rawEvents: [event]
-                });
-              }
+              location = foundOaLocation;
             }
-          } catch (e) {
-            if (
-              _.isMatch(e && e.response && e.response.body, {
-                error: 'invalid_request',
-                error_description: 'latitude: Latitude is required, longitude: Longitude is required'
-              })
-            ) {
-              log('warn', 'Address not understood, could not geocode', {
+          } else {
+            location = foundLocation.data;
+          }
+
+          delete mappedEvent.locations;
+          mappedEvent.locationUid = location.uid;
+
+          const correspondenceId = `${eventId}.${locationId}`;
+
+          const syncEvents = await syncDb.events.find({ query: { correspondenceId } });
+          syncEvent = syncEvents[0];
+
+          if (syncEvents.length) {
+            const indexListUpdate = changes.update.findIndex(
+              v => v.correspondenceId === correspondenceId
+            );
+
+            if (indexListUpdate !== -1) {
+              const itemToUpdate = changes.update[indexListUpdate];
+
+              itemToUpdate.rawEvents.push(event);
+
+              itemToUpdate.data = {
+                ...mappedEvent,
+                timings: _.uniqWith(
+                  _.concat(itemToUpdate.data.timings, mappedEvent.timings)
+                    .map(v => ({
+                      begin: moment(v.begin).toISOString(),
+                      end: moment(v.end).toISOString()
+                    })),
+                  _.isEqual
+                )
+              };
+            } else {
+              changes.update.push({
+                correspondenceId,
+                eventId,
+                locationId,
+                data: { ...mappedEvent },
+                rawEvents: [event]
+              });
+            }
+          } else {
+            const indexListCreate = changes.create.findIndex(
+              v => v.correspondenceId === correspondenceId
+            );
+
+            if (indexListCreate !== -1) {
+              // merge timings and update the event(s) to update
+              const itemToCreate = changes.create[indexListCreate];
+
+              itemToCreate.rawEvents.push(event);
+
+              itemToCreate.data = {
+                ...mappedEvent,
+                timings: _.uniqWith(
+                  _.concat(itemToCreate.data.timings, mappedEvent.timings)
+                    .map(v => ({
+                      begin: moment(v.begin).toISOString(),
+                      end: moment(v.end).toISOString()
+                    })),
+                  _.isEqual
+                )
+              };
+            } else {
+              changes.create.push({
+                correspondenceId,
+                eventId,
+                locationId,
+                data: { ...mappedEvent },
+                rawEvents: [event]
+              });
+            }
+          }
+        } catch (e) {
+          if (
+            _.isMatch(e && e.response && e.response.body, {
+              error: 'invalid_request',
+              error_description: 'latitude: Latitude is required, longitude: Longitude is required'
+            })
+          ) {
+            log('warn', 'Address not understood, could not geocode', {
+              eventId,
+              eventLocation,
+              mappedEvent
+            });
+          } else {
+            throw new VError({
+              cause: e,
+              info: {
                 eventId,
                 eventLocation,
                 mappedEvent
-              });
-            } else {
-              throw new VError({
-                cause: e,
-                info: {
-                  eventId,
-                  eventLocation,
-                  mappedEvent
-                }
-              }, 'Error on syncing');
-            }
+              }
+            }, 'Error on syncing');
           }
         }
-      } catch (error) {
-        log('error', error);
-        unlinkSync(path.join(directory, 'data', filename));
-        writeFileSync(
-          path.join(directory, 'errors', `${startSyncDate.toISOString()}:${filename}`),
-          JSON.stringify({ error, event }, getCircularReplacer(), 2)
-        );
       }
-    }
-
-    // TODO IMPORTANT remove this after dev !
-    if (offset + limit >= 2) {
-      // return;
-    }
-
-    if (simulate) {
-      offset += limit; // Not usesul here due to the `fs.unlink`
+    } catch (error) {
+      log('error', error);
+      unlinkSync(path.join(directory, 'data', filename));
+      writeFileSync(
+        path.join(directory, 'errors', `${startSyncDate.toISOString()}:${filename}`),
+        JSON.stringify({ error, event }, getCircularReplacer(), 2)
+      );
     }
   }
 
@@ -426,9 +418,9 @@ async function synchronize(options) {
     const syncEvents = await syncDb.events.find({ query: { correspondenceId: itemToUpdate.correspondenceId } });
 
     const newestEventUpdatedDate = itemToUpdate.rawEvents.reduce((result, value) => {
-      const eventUpdatedDate = methods.location.getUpdatedDate(value);
+      const eventUpdatedDate = methods.event.getUpdatedDate(value);
       return moment(eventUpdatedDate).isAfter(moment(result)) ? eventUpdatedDate : result;
-    }, methods.location.getUpdatedDate(itemToUpdate.rawEvents[0]));
+    }, methods.event.getUpdatedDate(itemToUpdate.rawEvents[0]));
     const olderSyncedAt = syncEvents.reduce(
       (result, value) => moment(value.syncedAt).isBefore(moment(result)) ? value.syncedAt : result,
       syncEvents[0].syncedAt
