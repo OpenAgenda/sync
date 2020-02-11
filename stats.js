@@ -48,7 +48,7 @@ async function get(config, listKeyOpt) {
   const result = (await redisClient.lrange(listKey, 0, length))
     .map(v => JSON.parse(v));
 
-  // await redisClient.ltrim(listKey, 1, 0);
+  await redisClient.ltrim(listKey, 1, 0);
 
   redisClient.end(true);
 
