@@ -87,8 +87,6 @@ async function sendReport(config) {
 
     await mails({
       template: 'report',
-      from: 'no-reply@mail.openagenda.com',
-      replyTo: 'admin@openagenda.com',
       to,
       data: {
         data
