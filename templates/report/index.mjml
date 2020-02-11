@@ -1,0 +1,20 @@
+<mjml>
+  <mj-body>
+    <mj-section>
+      <mj-column>
+        <mj-text>
+          Rapport de synchronisation
+        </mj-text>
+
+        <mj-spacer height="20px" />
+
+        <% for (const { agenda, stats } of data) { %>
+        <mj-text>
+          <b><%= agenda.title %>:</b>
+          <pre><%= JSON.stringify(stats, null, 2) %></pre>
+        </mj-text>
+        <% } %>
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

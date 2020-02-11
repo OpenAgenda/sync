@@ -1,5 +1,6 @@
 'use strict';
 
+const axios = require('axios');
 const { readdirSync, writeFileSync, readFileSync, unlinkSync } = require('fs');
 const { inspect } = require('util');
 const path = require('path');
@@ -10,6 +11,7 @@ const VError = require('verror');
 const mkdirp = require('mkdirp');
 const OaSdk = require('@openagenda/sdk-js/dist/index');
 const promisifyStore = require('./utils/promisifyStore');
+const statsUtil = require('./stats');
 // Oa
 const getFormSchema = require('./getFormSchema');
 const listOaLocations = require('./listOaLocations');
@@ -117,12 +119,16 @@ module.exports = async function syncTask(options) {
       }
     } catch (e) {
       if (e && (!e.response || e.response.status !== 416)) { // OutOfRange
-        return log('error', `Cannot list events: ${inspect(e)}`);
+        log('error', `Cannot list events: ${inspect(e)}`);
+
+        await pushStats(options, stats);
+
+        return stats;
       }
     }
 
     if (downloadOnly) {
-      return;
+      return stats;
     }
 
     await synchronize({ ...options, stats, methods });
@@ -130,6 +136,8 @@ module.exports = async function syncTask(options) {
   } catch (e) {
     log('error', e.response || e);
   }
+
+  await pushStats(options, stats);
 
   return stats;
 };
@@ -351,11 +359,12 @@ async function synchronize(options) {
       }
     } catch (error) {
       log('error', error);
-      unlinkSync(path.join(directory, 'data', filename));
       writeFileSync(
         path.join(directory, 'errors', `${startSyncDate.toISOString()}:${filename}`),
         JSON.stringify({ error, event }, getCircularReplacer(), 2)
       );
+    } finally {
+      unlinkSync(path.join(directory, 'data', filename));
     }
   }
 
@@ -762,4 +771,17 @@ function timingsStrings(timings) {
     begin: moment(v.begin).toISOString(),
     end: moment(v.end).toISOString()
   }));
+}
+
+async function pushStats(config, stats) {
+  if (!config.redis) {
+    return;
+  }
+
+  const { data: agenda } = await axios.get(`https://openagenda.com/agendas/${config.agenda.uid}`);
+
+  await statsUtil.push(config, {
+    agenda,
+    stats
+  });
 }

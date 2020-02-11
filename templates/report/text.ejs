@@ -1,0 +1,6 @@
+Rapport de synchronisation
+
+<% for (const { agenda, stats } of data) { %>
+<%= agenda.title %>:
+<%- JSON.stringify(stats, null, 2) %>
+<% } %>
