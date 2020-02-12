@@ -122,7 +122,7 @@ module.exports = async function syncTask(options) {
         log('error', `Cannot list events: ${inspect(e)}`);
 
         await pushStats(options, stats);
-        await statsUtil.sendReports(options);
+        await statsUtil.sendReport(options);
 
         return stats;
       }
@@ -139,7 +139,7 @@ module.exports = async function syncTask(options) {
   }
 
   await pushStats(options, stats);
-  await statsUtil.sendReports(options);
+  await statsUtil.sendReport(options);
 
   return stats;
 };
