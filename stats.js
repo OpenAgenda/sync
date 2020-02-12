@@ -24,6 +24,7 @@ async function push(config, stats) {
 
   for (const key of [].concat(listKey)) {
     result.push(await redisClient.rpush(key, JSON.stringify(stats)));
+    log(`Stats pushed on '${key}'`);
   }
 
   redisClient.end(true);
@@ -58,6 +59,10 @@ async function get(config, listKeyOpt) {
 async function sendReport(config) {
   const { log } = config;
 
+  if (typeof config.sendTo !== 'object' || config.sendTo === null) {
+    return;
+  }
+
   if (!config.redis) {
     log('Redis is not configured, impossible to send report');
     return;
@@ -68,22 +73,22 @@ async function sendReport(config) {
     return;
   }
 
-  if (typeof config.sendTo !== 'object' || config.sendTo === null) {
-    log('`config.sendTo` is not passed, nothing to do');
-    return;
-  }
-
   await mails.init({
     templatesDir: path.join(__dirname, 'templates'),
     ...config.mails
   });
 
-  for (const [listKey, to] of Object.entries(config.sendTo)) {
+  const entries = Object.entries(config.sendTo);
+
+  for (const [listKey, to] of entries) {
     const data = await get(config, listKey);
 
     if (!data.length) {
+      log(`Empty stats list '${listKey}'`);
       continue;
     }
+
+    log(`Stats on '${listKey}' is sent to: ${to.join(', ')}`);
 
     await mails({
       template: 'report',
