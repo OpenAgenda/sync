@@ -1,19 +1,45 @@
 <mjml>
   <mj-body>
-    <mj-section>
+    <mj-section padding-bottom="0">
       <mj-column>
-        <mj-text>
-          Rapport de synchronisation
-        </mj-text>
+        <mj-text font-size="22px">Rapport de synchronisation</mj-text>
+      </mj-column>
+    </mj-section>
 
-        <mj-spacer height="20px" />
+    <% for (const { agenda, stats } of data) { %>
+    <mj-section padding-bottom="0">
+      <mj-column>
+        <mj-text padding="0 25px"><b><%= agenda.title %>:</b></mj-text>
 
-        <% for (const { agenda, stats } of data) { %>
-        <mj-text>
-          <b><%= agenda.title %>:</b>
-          <pre><%= JSON.stringify(stats, null, 2) %></pre>
+        <% if (stats.eventListError) { %>
+        <mj-text color="#e74c3c" padding="10px 25px">
+          <b><u>La source de données a présenté des erreurs lors de sa lecture, la synchronisation a été
+            interrompue.</u></b>
         </mj-text>
         <% } %>
+
+        <mj-text padding="0 25px">
+          <pre><%= JSON.stringify(stats, null, 2) %></pre>
+        </mj-text>
+
+      </mj-column>
+    </mj-section>
+    <% } %>
+
+    <mj-section>
+      <mj-column>
+        <mj-text padding-left="0">
+          <ul>
+            <li><b>savedEvents</b>: Evénements présents dans la source</li>
+            <li><b>mergedSourceEvents</b>: Evénements de la source fusionnés</li>
+            <li><b>splitSourceEvents</b>: Evénements de la source distribués sur plusieurs événements</li>
+            <li><b>createdEvents</b>: Evénements créés</li>
+            <li><b>recreatedEvents</b>: Evénements re-créés</li>
+            <li><b>updatedEvents</b>: Evénements mis à jour</li>
+            <li><b>invalidImages</b>: Images invalides détectées</li>
+            <li><b>createdLocations</b>: Lieux créés</li>
+          </ul>
+        </mj-text>
       </mj-column>
     </mj-section>
   </mj-body>

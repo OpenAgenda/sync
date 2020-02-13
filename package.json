@@ -5,6 +5,9 @@
   "repository": "git@github.com:Oagenda/sync.git",
   "author": "Bertho <kevin.bertho@gmail.com>",
   "license": "MIT",
+  "scripts": {
+    "mails-editor": "yarn oa-mails-editor templates"
+  },
   "dependencies": {
     "@openagenda/logs": "^1.0.15",
     "@openagenda/mails": "^1.5.0",
