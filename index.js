@@ -11,6 +11,7 @@ const VError = require('verror');
 const mkdirp = require('mkdirp');
 const OaSdk = require('@openagenda/sdk-js/dist/index');
 const promisifyStore = require('./utils/promisifyStore');
+const isURL200 = require('./utils/isURL200');
 const statsUtil = require('./stats');
 // Oa
 const getFormSchema = require('./getFormSchema');
@@ -28,7 +29,7 @@ function getCircularReplacer() {
     }
     return value;
   };
-};
+}
 
 
 // Defauts
@@ -121,6 +122,8 @@ module.exports = async function syncTask(options) {
       if (e && (!e.response || e.response.status !== 416)) { // OutOfRange
         log('error', `Cannot list events: ${inspect(e)}`);
 
+        stats.sourceError = { message: e.message, status: e.response && e.response.status };
+
         await pushStats(options, stats);
         await statsUtil.sendReport(options);
 
@@ -200,7 +203,7 @@ async function synchronize(options) {
 
     try {
       const eventId = methods.event.getId(event);
-      let mappedEvent = await methods.event.map(event, formSchema, oaLocations);
+      const mappedEvent = await methods.event.map(event, formSchema, oaLocations);
 
       if (!mappedEvent) {
         if (!simulate) {
@@ -208,6 +211,14 @@ async function synchronize(options) {
         }
 
         continue;
+      }
+
+      if (
+        noBailOnInvalidImage
+        && mappedEvent.image && !(await isURL200(mappedEvent.image.url))
+      ) {
+        upStats(stats, 'invalidImage');
+        mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
       }
 
       for (const eventLocation of mappedEvent.locations) {
@@ -294,6 +305,8 @@ async function synchronize(options) {
                   _.isEqual
                 )
               };
+
+              upStats(stats, 'mergedSourceEvents');
             } else {
               changes.update.push({
                 correspondenceId,
@@ -325,6 +338,8 @@ async function synchronize(options) {
                   _.isEqual
                 )
               };
+
+              upStats(stats, 'mergedSourceEvents');
             } else {
               changes.create.push({
                 correspondenceId,
@@ -402,7 +417,8 @@ async function synchronize(options) {
               oa,
               agendaUid,
               noBailOnInvalidImage,
-              defaultImageUrl
+              defaultImageUrl,
+              stats
             }
           );
 
@@ -539,7 +555,8 @@ async function synchronize(options) {
                 oa,
                 agendaUid,
                 noBailOnInvalidImage,
-                defaultImageUrl
+                defaultImageUrl,
+                stats
               }
             );
 
@@ -565,7 +582,8 @@ async function synchronize(options) {
                     oa,
                     agendaUid,
                     noBailOnInvalidImage,
-                    defaultImageUrl
+                    defaultImageUrl,
+                    stats
                   }
                 );
 
@@ -624,7 +642,8 @@ async function synchronize(options) {
                 oa,
                 agendaUid,
                 noBailOnInvalidImage,
-                defaultImageUrl
+                defaultImageUrl,
+                stats
               }
             );
 
@@ -665,6 +684,7 @@ async function synchronize(options) {
 
   // writeFileSync( 'changes.json', JSON.stringify( changes, null, 2 ) );
 
+  /* PHASE 4: deletes */
   if (skipDeletion) {
     return;
   }
@@ -711,6 +731,7 @@ async function createEvent(
     agendaUid,
     noBailOnInvalidImage,
     defaultImageUrl,
+    stats
   }
 ) {
   let createdEvent;
@@ -732,6 +753,7 @@ async function createEvent(
     }
   } catch (e2) {
     if (noBailOnInvalidImage && _.get(e2, 'response.body.errors[0].step') === 'image') {
+      upStats(stats, 'invalidImages');
       mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
       ({ event: createdEvent } = await oa.events.create(agendaUid, mappedEvent));
     } else {
@@ -749,7 +771,8 @@ async function updateEvent(
     oa,
     agendaUid,
     noBailOnInvalidImage,
-    defaultImageUrl
+    defaultImageUrl,
+    stats
   }
 ) {
   let updatedEvent;
@@ -758,6 +781,7 @@ async function updateEvent(
     ({ event: updatedEvent } = await oa.events.update(agendaUid, oaEventUid, mappedEvent));
   } catch (e) {
     if (noBailOnInvalidImage && _.get(e, 'response.body.errors[0].step') === 'image') {
+      upStats(stats, 'invalidImages');
       mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
       ({ event: updatedEvent } = await oa.events.update(agendaUid, oaEventUid, mappedEvent));
     } else {
