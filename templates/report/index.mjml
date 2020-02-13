@@ -1,5 +1,18 @@
 <mjml>
   <mj-body>
+    <mj-section padding="15px 0">
+      <mj-column>
+        <mj-image
+          css-class="logo"
+          width="300px"
+          src="https://openagenda.com/images/openagenda.png"
+          href="https://openagenda.com/"
+          padding="0"
+          alt="logo"
+        />
+      </mj-column>
+    </mj-section>
+
     <mj-section padding-bottom="0">
       <mj-column>
         <mj-text font-size="22px">Rapport de synchronisation</mj-text>
@@ -7,40 +20,50 @@
     </mj-section>
 
     <% for (const { agenda, stats } of data) { %>
-    <mj-section padding-bottom="0">
-      <mj-column>
-        <mj-text padding="0 25px"><b><%= agenda.title %>:</b></mj-text>
+      <mj-section padding-top="10px" padding-bottom="0">
+        <mj-column>
+          <mj-text padding="0 25px">
+            <b><%= agenda.title %></b><br />
+            Exécuté le <%= stats.startSyncDateStr %>
+          </mj-text>
 
-        <% if (stats.eventListError) { %>
-        <mj-text color="#e74c3c" padding="10px 25px">
-          <b><u>La source de données a présenté des erreurs lors de sa lecture, la synchronisation a été
-            interrompue.</u></b>
-        </mj-text>
-        <% } %>
+          <% if (stats.eventListError) { %>
+            <mj-text color="#e74c3c" padding="10px 25px 0 25px">
+              <b><u>La source de données a présenté des erreurs lors de sa lecture, la synchronisation a été
+                  interrompue.</u></b>
+            </mj-text>
+            <mj-text color="#e74c3c" padding="10px 25px 0 25px">
+              <%= JSON.stringify(stats.eventListError) %>
+            </mj-text>
+          <% } %>
 
-        <mj-text padding="0 25px">
-          <pre><%= JSON.stringify(stats, null, 2) %></pre>
-        </mj-text>
+          <mj-text padding="0">
+            <ul>
+              <%
+                const mergedSources = stats.mergedSourceEvents ? Object.values(stats.mergedSourceEvents) : [];
+              %>
 
-      </mj-column>
-    </mj-section>
+              <%- 'savedEvents' in stats
+                ? `<li>Evénements présents dans la source: <b>${stats.savedEvents}</b></li>`
+                : '' %>
+              <%- 'mergedSourceEvents' in stats
+                ? `<li>Evénements de la source fusionnés: <b>${_.sum(mergedSources)}</b> -> <b>${mergedSources.length}</b></li>`
+                : '' %>
+              <%- 'splitSourceEvents' in stats
+                ? `<li>Evénements de la source distribués sur plusieurs événements: <b>${stats.splitSourceEvents}</b> -> <b>${stats.splitedSourceEvents}</b></li>`
+                : '' %>
+              <%- 'upToDateEvents' in stats ? `<li>Evénements déjà à jour: <b>${stats.upToDateEvents}</b></li>` : '' %>
+              <%- 'createdEvents' in stats ? `<li>Evénements créés: <b>${stats.createdEvents}</b></li>` : '' %>
+              <%- 'recreatedEvents' in stats ? `<li>Evénements re-créés: <b>${stats.recreatedEvents}</b></li>` : '' %>
+              <%- 'updatedEvents' in stats ? `<li>Evénements mis à jour: <b>${stats.updatedEvents}</b></li>` : '' %>
+              <%- 'invalidImages' in stats
+                ? `<li>Images invalides détectées: <b>${stats.invalidImages}</b></li>`
+                : '' %>
+              <%- 'createdLocations' in stats ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
+            </ul>
+          </mj-text>
+        </mj-column>
+      </mj-section>
     <% } %>
-
-    <mj-section>
-      <mj-column>
-        <mj-text padding-left="0">
-          <ul>
-            <li><b>savedEvents</b>: Evénements présents dans la source</li>
-            <li><b>mergedSourceEvents</b>: Evénements de la source fusionnés</li>
-            <li><b>splitSourceEvents</b>: Evénements de la source distribués sur plusieurs événements</li>
-            <li><b>createdEvents</b>: Evénements créés</li>
-            <li><b>recreatedEvents</b>: Evénements re-créés</li>
-            <li><b>updatedEvents</b>: Evénements mis à jour</li>
-            <li><b>invalidImages</b>: Images invalides détectées</li>
-            <li><b>createdLocations</b>: Lieux créés</li>
-          </ul>
-        </mj-text>
-      </mj-column>
-    </mj-section>
   </mj-body>
 </mjml>

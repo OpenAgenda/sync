@@ -1,6 +1,9 @@
 'use strict';
 
+const _ = require('lodash');
+
 module.exports = {
+  _,
   domain: 'https://openagenda.com',
   data: [
     {
@@ -13,7 +16,11 @@ module.exports = {
         official: 0,
         image: null
       },
-      stats: { savedEvents: 14, upToDateEvents: 14 }
+      stats: {
+        startSyncDateStr: 'jeudi 13 février 2020 à 15:00',
+        savedEvents: 14,
+        upToDateEvents: 14
+      }
     },
     {
       agenda: {
@@ -26,8 +33,12 @@ module.exports = {
         image: null
       },
       stats: {
+        startSyncDateStr: 'jeudi 13 février 2020 à 16:00',
         savedEvents: 48,
-        mergedSourceEvents: 10,
+        mergedSourceEvents: {
+          '6536.espace-alex-jany': 12,
+          '6510.espace-palumbo': 8
+        },
         invalidImages: 3
       }
     },
@@ -42,7 +53,24 @@ module.exports = {
         image: null
       },
       stats: {
+        startSyncDateStr: 'jeudi 13 février 2020 à 17:00',
         eventListError: { message: 'Broken json' }
+      }
+    },
+    {
+      agenda: {
+        uid: 12345678,
+        title: 'Splited truc',
+        description: 'Splited truc',
+        slug: 'splited-truc-test',
+        url: null,
+        official: 0,
+        image: null
+      },
+      stats: {
+        startSyncDateStr: 'jeudi 13 février 2020 à 18:00',
+        splitSourceEvents: 4,
+        splitedSourceEvents: 10
       }
     },
   ]

@@ -13,6 +13,9 @@ const OaSdk = require('@openagenda/sdk-js/dist/index');
 const promisifyStore = require('./utils/promisifyStore');
 const isURL200 = require('./utils/isURL200');
 const statsUtil = require('./stats');
+const upStats = require('./utils/upStats');
+const createEvent = require('./createEvent');
+const updateEvent = require('./updateEvent');
 // Oa
 const getFormSchema = require('./getFormSchema');
 const listOaLocations = require('./listOaLocations');
@@ -179,6 +182,7 @@ async function synchronize(options) {
   const startSyncDate = new Date();
   log('info', `startSyncDate: ${startSyncDate.toJSON()}`);
   stats.startSyncDate = startSyncDate;
+  stats.startSyncDateStr = moment(startSyncDate).locale('fr').format('dddd D MMMM YYYY à HH:mm');
 
   const oa = new OaSdk({ secretKey });
   await oa.connect();
@@ -303,7 +307,11 @@ async function synchronize(options) {
                 )
               };
 
-              upStats(stats, 'mergedSourceEvents');
+              if (!stats.mergedSourceEvents) {
+                stats.mergedSourceEvents = {};
+              }
+
+              stats.mergedSourceEvents[correspondenceId] = (stats.mergedSourceEvents[correspondenceId] || 0) + 1;
             } else {
               changes.update.push({
                 correspondenceId,
@@ -336,7 +344,11 @@ async function synchronize(options) {
                 )
               };
 
-              upStats(stats, 'mergedSourceEvents');
+              if (!stats.mergedSourceEvents) {
+                stats.mergedSourceEvents = {};
+              }
+
+              stats.mergedSourceEvents[correspondenceId] = (stats.mergedSourceEvents[correspondenceId] || 0) + 1;
             } else {
               changes.create.push({
                 correspondenceId,
@@ -385,6 +397,11 @@ async function synchronize(options) {
   /* PHASE 2: creates */
   for (const itemToCreate of changes.create) {
     const chunkedTimings = _.chunk(itemToCreate.data.timings, 800);
+
+    if (chunkedTimings.length > 1) {
+      upStats(stats, 'splitSourceEvents');
+      upStats(stats, 'splitedSourceEvents', chunkedTimings.length);
+    }
 
     for (const timings of chunkedTimings) {
       let event = { ...itemToCreate.data, timings };
@@ -477,6 +494,11 @@ async function synchronize(options) {
       upStats(stats, 'upToDateEvents');
 
       continue;
+    }
+
+    if (chunkedTimings.length > 1) {
+      upStats(stats, 'splitSourceEvents');
+      upStats(stats, 'splitedSourceEvents', chunkedTimings.length);
     }
 
     for (let i = 0; i < chunkedTimings.length; i++) {
@@ -713,80 +735,6 @@ async function synchronize(options) {
       }, 'Error on event remove'));
     }
   }
-}
-
-function upStats(stats, key, increment = 1) {
-  if (stats) {
-    _.set(stats, key, _.get(stats, key, 0) + increment);
-  }
-}
-
-async function createEvent(
-  mappedEvent,
-  {
-    oa,
-    agendaUid,
-    noBailOnInvalidImage,
-    defaultImageUrl,
-    stats
-  }
-) {
-  let createdEvent;
-
-  try {
-    try {
-      ({ event: createdEvent } = await oa.events.create(agendaUid, mappedEvent));
-    } catch (e) {
-      // Retry if it's a duplicate slug error
-      if (_.isMatch(_.get(e, 'response.body.errors[0]', null), {
-        field: 'slug',
-        code: 'duplicate'
-      })) {
-        mappedEvent.slug += '_' + _.random(Math.pow(10, 6));
-        ({ event: createdEvent } = await oa.events.create(agendaUid, mappedEvent));
-      } else {
-        throw e;
-      }
-    }
-  } catch (e2) {
-    if (noBailOnInvalidImage && _.get(e2, 'response.body.errors[0].step') === 'image') {
-      upStats(stats, 'invalidImages');
-      mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
-      ({ event: createdEvent } = await oa.events.create(agendaUid, mappedEvent));
-    } else {
-      throw e2;
-    }
-  }
-
-  return createdEvent;
-}
-
-async function updateEvent(
-  oaEventUid,
-  mappedEvent,
-  {
-    oa,
-    agendaUid,
-    noBailOnInvalidImage,
-    defaultImageUrl,
-    stats
-  }
-) {
-  let updatedEvent;
-
-  try {
-    ({ event: updatedEvent } = await oa.events.update(agendaUid, oaEventUid, mappedEvent));
-  } catch (e) {
-    if (noBailOnInvalidImage && _.get(e, 'response.body.errors[0].step') === 'image') {
-      upStats(stats, 'invalidImages');
-      mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
-      ({ event: updatedEvent } = await oa.events.update(agendaUid, oaEventUid, mappedEvent));
-    } else {
-      throw e;
-    }
-  }
-
-  return updatedEvent;
 }
 
 function timingsStrings(timings) {
