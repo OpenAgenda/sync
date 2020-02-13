@@ -122,7 +122,7 @@ module.exports = async function syncTask(options) {
       if (e && (!e.response || e.response.status !== 416)) { // OutOfRange
         log('error', `Cannot list events: ${inspect(e)}`);
 
-        stats.sourceError = { message: e.message, status: e.response && e.response.status };
+        stats.eventListError = { message: e.message, status: e.response && e.response.status };
 
         await pushStats(options, stats);
         await statsUtil.sendReport(options);
@@ -178,6 +178,7 @@ async function synchronize(options) {
 
   const startSyncDate = new Date();
   log('info', `startSyncDate: ${startSyncDate.toJSON()}`);
+  stats.startSyncDate = startSyncDate;
 
   const oa = new OaSdk({ secretKey });
   await oa.connect();
@@ -206,10 +207,6 @@ async function synchronize(options) {
       const mappedEvent = await methods.event.map(event, formSchema, oaLocations);
 
       if (!mappedEvent) {
-        if (!simulate) {
-          unlinkSync(path.join(directory, 'data', filename));
-        }
-
         continue;
       }
 
@@ -217,7 +214,7 @@ async function synchronize(options) {
         noBailOnInvalidImage
         && mappedEvent.image && !(await isURL200(mappedEvent.image.url))
       ) {
-        upStats(stats, 'invalidImage');
+        upStats(stats, 'invalidImages');
         mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
       }
 
