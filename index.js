@@ -423,6 +423,8 @@ async function synchronize(options) {
       }
 
       if (!event) {
+        upStats(stats, 'ignoredEvents');
+
         continue;
       }
 
@@ -549,12 +551,26 @@ async function synchronize(options) {
             );
 
             if (!simulate) {
-              await oa.events.delete(agendaUid, syncEvent.data.uid);
+              await oa.events.delete(agendaUid, syncEvent.data.uid)
+                .catch(e => {
+                  if ( // already removed on OA
+                    !_.isMatch(e && e.response && e.response, {
+                      status: 404,
+                      body: {
+                        error: 'event not found'
+                      }
+                    })
+                  ) {
+                    throw e;
+                  }
+                });;
 
               await syncDb.events.remove({ _id: syncEvent._id }, {});
+
+              upStats(stats, 'removedFalsyEvents');
             }
           } catch (e) {
-            const error = new VError(e, 'Error on event remove (after postMapEvent)');
+            const error = new VError(e, 'Error on event remove (after event.postMap)');
 
             upStats(stats, 'eventFalsyRemoveErrors');
 
@@ -673,6 +689,8 @@ async function synchronize(options) {
         }
 
         if (!event) {
+          upStats(stats, 'ignoredEvents');
+
           continue;
         }
 
