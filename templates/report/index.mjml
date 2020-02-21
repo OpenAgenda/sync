@@ -39,15 +39,11 @@
 
           <mj-text padding="0">
             <ul>
-              <%
-                const mergedSources = stats.mergedSourceEvents ? Object.values(stats.mergedSourceEvents) : [];
-              %>
-
               <%- 'savedEvents' in stats
                 ? `<li>Evénements présents dans la source: <b>${stats.savedEvents}</b></li>`
                 : '' %>
               <%- 'mergedSourceEvents' in stats
-                ? `<li>Evénements de la source fusionnés: <b>${_.sum(mergedSources)}</b> -> <b>${mergedSources.length}</b></li>`
+                ? `<li>Evénements de la source fusionnés: <b>${stats.mergedSourceEvents}</b> -> <b>${stats.mergedEvents}</b></li>`
                 : '' %>
               <%- 'splitSourceEvents' in stats
                 ? `<li>Evénements de la source distribués sur plusieurs événements: <b>${stats.splitSourceEvents}</b> -> <b>${stats.splitedSourceEvents}</b></li>`

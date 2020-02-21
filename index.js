@@ -24,7 +24,7 @@ const listSavedEvents = require('./listSavedEvents');
 function getCircularReplacer() {
   const seen = new WeakSet();
   return (key, value) => {
-    if (typeof value === "object" && value !== null) {
+    if (typeof value === 'object' && value !== null) {
       if (seen.has(value)) {
         return;
       }
@@ -125,8 +125,10 @@ module.exports = async function syncTask(options) {
       if (e && (!e.response || e.response.status !== 416)) { // OutOfRange
         log('error', `Cannot list events: ${inspect(e)}`);
 
+        stats.startSyncDateStr = moment().locale('fr').format('dddd D MMMM YYYY à HH:mm');
         stats.eventListError = { message: e.message, status: e.response && e.response.status };
 
+        reduceStats(stats);
         await pushStats(options, stats);
         await statsUtil.sendReport(options);
 
@@ -141,9 +143,11 @@ module.exports = async function syncTask(options) {
     await synchronize({ ...options, stats, methods });
 
   } catch (e) {
+    // script error
     log('error', e.response || e);
   }
 
+  reduceStats(stats);
   await pushStats(options, stats);
   await statsUtil.sendReport(options);
 
@@ -202,7 +206,7 @@ async function synchronize(options) {
   for (let i = 0; i < filenames.length; i++) {
     const filename = filenames[i];
 
-    log.info(`Dispatch ${filename} (${i+1}/${filenames.length})`);
+    log.info(`Dispatch ${filename} (${i + 1}/${filenames.length})`);
 
     const event = JSON.parse(readFileSync(path.join(directory, 'data', filename), 'utf8'));
 
@@ -222,12 +226,16 @@ async function synchronize(options) {
         mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
       }
 
-      for (const eventLocation of mappedEvent.locations) {
+      const eventLocations = mappedEvent.locations;
+      delete mappedEvent.locations;
+
+      for (const eventLocation of eventLocations) {
         let syncEvent = null;
+        let location = null;
+        let locationId = undefined;
 
         try {
-          let location;
-          const locationId = methods.location.getId(eventLocation, event);
+          locationId = methods.location.getId(eventLocation, event);
           const foundOaLocation = methods.location.find(oaLocations, eventLocation);
           let foundLocation = (await syncDb.locations.findOne({ query: { correspondenceId: locationId } }));
 
@@ -276,114 +284,117 @@ async function synchronize(options) {
           } else {
             location = foundLocation.data;
           }
-
-          delete mappedEvent.locations;
-          mappedEvent.locationUid = location.uid;
-
-          const correspondenceId = `${eventId}.${locationId}`;
-
-          const syncEvents = await syncDb.events.find({ query: { correspondenceId } });
-          syncEvent = syncEvents[0];
-
-          if (syncEvents.length) {
-            const indexListUpdate = changes.update.findIndex(
-              v => v.correspondenceId === correspondenceId
-            );
-
-            if (indexListUpdate !== -1) {
-              const itemToUpdate = changes.update[indexListUpdate];
-
-              itemToUpdate.rawEvents.push(event);
-
-              itemToUpdate.data = {
-                ...mappedEvent,
-                timings: _.uniqWith(
-                  _.concat(itemToUpdate.data.timings, mappedEvent.timings)
-                    .map(v => ({
-                      begin: moment(v.begin).toISOString(),
-                      end: moment(v.end).toISOString()
-                    })),
-                  _.isEqual
-                )
-              };
-
-              if (!stats.mergedSourceEvents) {
-                stats.mergedSourceEvents = {};
-              }
-
-              stats.mergedSourceEvents[correspondenceId] = (stats.mergedSourceEvents[correspondenceId] || 0) + 1;
-            } else {
-              changes.update.push({
-                correspondenceId,
-                eventId,
-                locationId,
-                data: { ...mappedEvent },
-                rawEvents: [event]
-              });
-            }
-          } else {
-            const indexListCreate = changes.create.findIndex(
-              v => v.correspondenceId === correspondenceId
-            );
-
-            if (indexListCreate !== -1) {
-              // merge timings and update the event(s) to update
-              const itemToCreate = changes.create[indexListCreate];
-
-              itemToCreate.rawEvents.push(event);
-
-              itemToCreate.data = {
-                ...mappedEvent,
-                timings: _.uniqWith(
-                  _.concat(itemToCreate.data.timings, mappedEvent.timings)
-                    .map(v => ({
-                      begin: moment(v.begin).toISOString(),
-                      end: moment(v.end).toISOString()
-                    })),
-                  _.isEqual
-                )
-              };
-
-              if (!stats.mergedSourceEvents) {
-                stats.mergedSourceEvents = {};
-              }
-
-              stats.mergedSourceEvents[correspondenceId] = (stats.mergedSourceEvents[correspondenceId] || 0) + 1;
-            } else {
-              changes.create.push({
-                correspondenceId,
-                eventId,
-                locationId,
-                data: { ...mappedEvent },
-                rawEvents: [event]
-              });
-            }
-          }
         } catch (e) {
-          if (
-            _.isMatch(e && e.response && e.response.body, {
-              error: 'invalid_request',
-              error_description: 'latitude: Latitude is required, longitude: Longitude is required'
-            })
-          ) {
-            log('warn', 'Address not understood, could not geocode', {
+          const error = new VError({
+            cause: e,
+            info: {
               eventId,
               eventLocation,
               mappedEvent
-            });
+            }
+          }, 'Error in location phase');
+
+          upStats(stats, 'locationErrors');
+
+          log('error', error);
+          writeFileSync(
+            path.join(directory, 'errors', `${startSyncDate.toISOString()}:${eventId}.${locationId}.json`),
+            JSON.stringify({ error, event }, getCircularReplacer(), 2)
+          );
+
+          continue;
+        }
+
+        const data = {
+          ...mappedEvent,
+          locationUid: location.uid
+        };
+
+        const correspondenceId = `${eventId}.${locationId}`;
+
+        const syncEvents = await syncDb.events.find({ query: { correspondenceId } });
+        syncEvent = syncEvents[0];
+
+        if (syncEvents.length) {
+          const indexListUpdate = changes.update.findIndex(
+            v => v.correspondenceId === correspondenceId
+          );
+
+          if (indexListUpdate !== -1) {
+            const itemToUpdate = changes.update[indexListUpdate];
+
+            itemToUpdate.rawEvents.push(event);
+
+            itemToUpdate.data = {
+              ...data,
+              timings: _.uniqWith(
+                _.concat(itemToUpdate.data.timings, data.timings)
+                  .map(v => ({
+                    begin: moment(v.begin).toISOString(),
+                    end: moment(v.end).toISOString()
+                  })),
+                _.isEqual
+              )
+            };
+
+            if (!stats.mergedSourceEvents) {
+              stats.mergedSourceEvents = {};
+            }
+
+            stats.mergedSourceEvents[correspondenceId] = (stats.mergedSourceEvents[correspondenceId] || 1) + 1;
           } else {
-            throw new VError({
-              cause: e,
-              info: {
-                eventId,
-                eventLocation,
-                mappedEvent
-              }
-            }, 'Error on syncing');
+            changes.update.push({
+              correspondenceId,
+              eventId,
+              locationId,
+              data,
+              rawEvents: [event]
+            });
+          }
+        } else {
+          const indexListCreate = changes.create.findIndex(
+            v => v.correspondenceId === correspondenceId
+          );
+
+          if (indexListCreate !== -1) {
+            // merge timings and update the event(s) to update
+            const itemToCreate = changes.create[indexListCreate];
+
+            itemToCreate.rawEvents.push(event);
+
+            itemToCreate.data = {
+              ...data,
+              timings: _.uniqWith(
+                _.concat(itemToCreate.data.timings, data.timings)
+                  .map(v => ({
+                    begin: moment(v.begin).toISOString(),
+                    end: moment(v.end).toISOString()
+                  })),
+                _.isEqual
+              )
+            };
+
+            if (!stats.mergedSourceEvents) {
+              stats.mergedSourceEvents = {};
+            }
+
+            stats.mergedSourceEvents[correspondenceId] = (stats.mergedSourceEvents[correspondenceId] || 1) + 1;
+          } else {
+            changes.create.push({
+              correspondenceId,
+              eventId,
+              locationId,
+              data,
+              rawEvents: [event]
+            });
           }
         }
       }
-    } catch (error) {
+    } catch (e) {
+      const error = new VError(e, 'Error in event map');
+
+      upStats(stats, 'eventMapErrors');
+
       log('error', error);
       writeFileSync(
         path.join(directory, 'errors', `${startSyncDate.toISOString()}:${filename}`),
@@ -403,7 +414,8 @@ async function synchronize(options) {
       upStats(stats, 'splitedSourceEvents', chunkedTimings.length);
     }
 
-    for (const timings of chunkedTimings) {
+    for (let i = 0; i < chunkedTimings.length; i++) {
+      const timings = chunkedTimings[i];
       let event = { ...itemToCreate.data, timings };
 
       if (typeof methods.event.postMap === 'function') {
@@ -445,10 +457,18 @@ async function synchronize(options) {
 
         upStats(stats, 'createdEvents');
       } catch (e) {
-        log('error', new VError({
+        const error = new VError({
           cause: e,
           info: itemToCreate
-        }, 'Error on event create'));
+        }, 'Error on event create');
+
+        upStats(stats, 'eventCreateErrors');
+
+        log('error', error);
+        writeFileSync(
+          path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToCreate.correspondenceId}:${i}.json`),
+          JSON.stringify({ error, itemToCreate, event }, getCircularReplacer(), 2)
+        );
       }
     }
   }
@@ -534,12 +554,14 @@ async function synchronize(options) {
               await syncDb.events.remove({ _id: syncEvent._id }, {});
             }
           } catch (e) {
-            log(
-              'error',
-              new VError({
-                cause: e,
-                info: syncEvent
-              }, 'Error on event removing')
+            const error = new VError(e, 'Error on event remove (after postMapEvent)');
+
+            upStats(stats, 'eventFalsyRemoveErrors');
+
+            log('error', error);
+            writeFileSync(
+              path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
+              JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
             );
           }
 
@@ -615,18 +637,28 @@ async function synchronize(options) {
 
               upStats(stats, 'recreatedEvents');
             } catch (e) {
-              log('error', new VError({
-                cause: e,
-                info: itemToUpdate
-              }, 'Error on event update'));
+              const error = new VError(e, 'Error on event recreate');
+
+              upStats(stats, 'eventRecreateErrors');
+
+              log('error', error);
+              writeFileSync(
+                path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
+                JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
+              );
             }
           } else {
             ignoredDeletes.push(syncEvent.data.uid);
 
-            log('error', new VError({
-              cause: e,
-              info: itemToUpdate
-            }, 'Error on event update'));
+            const error = new VError(e, 'Error on event update');
+
+            upStats(stats, 'eventUpdateErrors');
+
+            log('error', error);
+            writeFileSync(
+              path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
+              JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
+            );
           }
         }
       } else {
@@ -675,10 +707,15 @@ async function synchronize(options) {
 
           upStats(stats, 'createdEvents');
         } catch (e) {
-          log('error', new VError({
-            cause: e,
-            info: itemToUpdate
-          }, 'Error on event update (one more for new timings)'));
+          const error = new VError(e, 'Error on event update (one more for new timings)');
+
+          upStats(stats, 'eventCreateTimingsErrors');
+
+          log('error', error);
+          writeFileSync(
+            path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
+            JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
+          );
         }
       }
     }
@@ -686,18 +723,42 @@ async function synchronize(options) {
     for (let i = chunkedTimings.length; i < syncEvents.length; i++) {
       const syncEvent = syncEvents[i];
 
-      if (!simulate) {
-        await oa.events.delete(agendaUid, syncEvent.data.uid);
-      }
-
-      log(
-        'info',
-        'Event with timings that exceed deleted',
-        {
-          eventId: itemToUpdate.eventId,
-          locationId: itemToUpdate.locationId
+      try {
+        if (!simulate) {
+          await oa.events.delete(agendaUid, syncEvent.data.uid)
+            .catch(e => {
+              if ( // already removed on OA
+                !_.isMatch(e && e.response && e.response, {
+                  status: 404,
+                  body: {
+                    error: 'event not found'
+                  }
+                })
+              ) {
+                throw e;
+              }
+            });
         }
-      );
+
+        log(
+          'info',
+          'Event with timings that exceed deleted',
+          {
+            eventId: itemToUpdate.eventId,
+            locationId: itemToUpdate.locationId
+          }
+        );
+      } catch (e) {
+        const error = new VError(e, 'Error on event update (one less for removed timings)');
+
+        upStats(stats, 'eventRemoveTimingsErrors');
+
+        log('error', error);
+        writeFileSync(
+          path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
+          JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
+        );
+      }
     }
   }
 
@@ -720,7 +781,19 @@ async function synchronize(options) {
   for (const eventToRemove of eventsToRemove) {
     try {
       if (!simulate) {
-        await oa.events.delete(agendaUid, eventToRemove.data.uid);
+        await oa.events.delete(agendaUid, eventToRemove.data.uid)
+          .catch(e => {
+            if ( // already removed on OA
+              !_.isMatch(e && e.response && e.response, {
+                status: 404,
+                body: {
+                  error: 'event not found'
+                }
+              })
+            ) {
+              throw e;
+            }
+          });
 
         await syncDb.events.remove({ _id: eventToRemove._id }, {});
       }
@@ -729,6 +802,16 @@ async function synchronize(options) {
 
       upStats(stats, 'removedEvents');
     } catch (e) {
+      const error = new VError(e, 'Error on event remove');
+
+      upStats(stats, 'eventRemoveErrors');
+
+      log('error', error);
+      writeFileSync(
+        path.join(directory, 'errors', `${startSyncDate.toISOString()}:${eventToRemove.data.uid}.json`),
+        JSON.stringify({ error, eventToRemove }, getCircularReplacer(), 2)
+      );
+
       log('error', new VError({
         cause: e,
         info: eventToRemove
@@ -742,6 +825,13 @@ function timingsStrings(timings) {
     begin: moment(v.begin).toISOString(),
     end: moment(v.end).toISOString()
   }));
+}
+
+function reduceStats(stats) {
+  const mergedEventsList = stats.mergedSourceEvents ? Object.values(stats.mergedSourceEvents) : [];
+
+  stats.mergedSourceEvents = _.sum(mergedEventsList);
+  stats.mergedEvents = mergedEventsList.length;
 }
 
 async function pushStats(config, stats) {

@@ -35,10 +35,8 @@ module.exports = {
       stats: {
         startSyncDateStr: 'jeudi 13 février 2020 à 16:00',
         savedEvents: 48,
-        mergedSourceEvents: {
-          '6536.espace-alex-jany': 12,
-          '6510.espace-palumbo': 8
-        },
+        mergedSourceEvents: 20,
+        mergedEvents: 2,
         invalidImages: 3
       }
     },
