@@ -20,9 +20,10 @@
     </mj-section>
 
     <% for (const { agenda, stats } of data) { %>
-      <mj-section padding-top="10px" padding-bottom="0">
+
+      <mj-section padding-top="0" padding-bottom="0">
         <mj-column>
-          <mj-text padding="0 25px">
+          <mj-text padding="10px 25px 0 25px">
             <b><%= agenda.title %></b><br />
             Exécuté le <%= stats.startSyncDateStr %>
           </mj-text>
@@ -58,6 +59,24 @@
               <%- 'createdLocations' in stats ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
             </ul>
           </mj-text>
+
+          <%
+            const totalErrors = (stats.locationErrors || 0)
+              + (stats.eventMapErrors || 0)
+              + (stats.eventCreateErrors || 0)
+              + (stats.eventFalsyRemoveErrors || 0)
+              + (stats.eventRecreateErrors || 0)
+              + (stats.eventUpdateErrors || 0)
+              + (stats.eventCreateTimingsErrors || 0)
+              + (stats.eventRemoveTimingsErrors || 0)
+              + (stats.eventRemoveErrors || 0)
+          %>
+
+          <% if (totalErrors > 0) { %>
+            <mj-text color="#e74c3c" padding="0 25px 0 25px">
+              Avec un total de <b><%- totalErrors %></b> erreur<%- totalErrors > 1 ? 's' : '' %>.
+            </mj-text>
+          <% } %>
         </mj-column>
       </mj-section>
     <% } %>

@@ -68,7 +68,8 @@ module.exports = {
       stats: {
         startSyncDateStr: 'jeudi 13 février 2020 à 18:00',
         splitSourceEvents: 4,
-        splitedSourceEvents: 10
+        splitedSourceEvents: 10,
+        locationErrors: 12
       }
     },
   ]
