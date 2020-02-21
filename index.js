@@ -500,6 +500,11 @@ async function synchronize(options) {
 
     const needUpdate = forceUpdateOption || moment(newestEventUpdatedDate).isAfter(olderSyncedAt);
 
+    if (chunkedTimings.length > 1) {
+      upStats(stats, 'splitSourceEvents');
+      upStats(stats, 'splitedSourceEvents', chunkedTimings.length);
+    }
+
     if (!needUpdate && sameTimings) {
       log(
         'info',
@@ -521,11 +526,6 @@ async function synchronize(options) {
       upStats(stats, 'upToDateEvents');
 
       continue;
-    }
-
-    if (chunkedTimings.length > 1) {
-      upStats(stats, 'splitSourceEvents');
-      upStats(stats, 'splitedSourceEvents', chunkedTimings.length);
     }
 
     for (let i = 0; i < chunkedTimings.length; i++) {
