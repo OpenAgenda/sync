@@ -229,6 +229,10 @@ async function synchronize(options) {
       const eventLocations = mappedEvent.locations;
       delete mappedEvent.locations;
 
+      if (eventLocations.length === 0) {
+        upStats(stats, 'eventsWithoutLocation');
+      }
+
       if (eventLocations.length > 1) {
         upStats(stats, 'splitSourceLocations');
         upStats(stats, 'splitedSourceLocations', eventLocations.length);

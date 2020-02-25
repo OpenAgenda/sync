@@ -1,4 +1,16 @@
 <mjml>
+  <mj-head>
+    <mj-style>
+      .total-checksum div .success {
+        color: #0dac50;
+      }
+
+      .total-checksum div .error {
+        color: #e74c3c;
+      }
+    </mj-style>
+  </mj-head>
+
   <mj-body>
     <mj-section padding="15px 0">
       <mj-column>
@@ -43,12 +55,21 @@
               <%- 'savedEvents' in stats
                 ? `<li>Evénements présents dans la source: <b>${stats.savedEvents}</b></li>`
                 : '' %>
+              <%- 'eventsWithoutLocation' in stats
+                ? `<li>Evénements sans lieu: <b>${stats.eventsWithoutLocation}</b></li>`
+                : '' %>
+              <%- 'splitSourceLocations' in stats
+                ? `<li>Evénements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${stats.splitSourceLocations}</b> -> <b>${stats.splitedSourceLocations}</b></li>`
+                : '' %>
               <%- 'mergedSourceEvents' in stats
                 ? `<li>Evénements de la source fusionnés: <b>${stats.mergedSourceEvents}</b> -> <b>${stats.mergedEvents}</b></li>`
                 : '' %>
               <%- 'splitSourceEvents' in stats
-                ? `<li>Evénements de la source distribués sur plusieurs événements: <b>${stats.splitSourceEvents}</b> -> <b>${stats.splitedSourceEvents}</b></li>`
+                ? `<li>Evénements de la source distribués sur plusieurs événements (horaires): <b>${stats.splitSourceEvents}</b> -> <b>${stats.splitedSourceEvents}</b></li>`
                 : '' %>
+              <%- 'ignoredEvents' in stats
+                ? `<li>Evénements ignorés: <b>${stats.ignoredEvents}</b>`
+                : `` %>
               <%- 'upToDateEvents' in stats ? `<li>Evénements déjà à jour: <b>${stats.upToDateEvents}</b></li>` : '' %>
               <%- 'createdEvents' in stats ? `<li>Evénements créés: <b>${stats.createdEvents}</b></li>` : '' %>
               <%- 'recreatedEvents' in stats ? `<li>Evénements re-créés: <b>${stats.recreatedEvents}</b></li>` : '' %>
@@ -59,6 +80,18 @@
               <%- 'createdLocations' in stats ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
             </ul>
           </mj-text>
+
+          <% if ('savedEvents' in stats) { %>
+            <mj-text css-class="total-checksum" padding="0 25px 0 25px">
+              Vérification des totaux: <%- (stats.savedEvents || 0)
+              + ((stats.splitedSourceLocations || 0) - (stats.splitSourceLocations || 0))
+              - ((stats.mergedSourceEvents || 0) - (stats.mergedEvents || 0))
+              - (stats.eventsWithoutLocation || 0)
+              - (stats.ignoredEvents || 0)
+              - ((stats.createdEvents || 0) + (stats.recreatedEvents || 0) + (stats.updatedEvents || 0) + (stats.upToDateEvents || 0)) === 0
+              ? `<span class="success">ok</span>` : `<span class="error">incorrect</span>`%>
+            </mj-text>
+          <% } %>
 
           <%
             const totalErrors = (stats.locationErrors || 0)

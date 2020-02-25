@@ -35,9 +35,14 @@ module.exports = {
       stats: {
         startSyncDateStr: 'jeudi 13 février 2020 à 16:00',
         savedEvents: 48,
+        splitSourceLocations: 4,
+        splitedSourceLocations: 8,
+        eventsWithoutLocation: 4,
         mergedSourceEvents: 20,
         mergedEvents: 2,
-        invalidImages: 3
+        ignoredEvents: 8,
+        invalidImages: 3,
+        upToDateEvents: 22
       }
     },
     {
@@ -66,11 +71,12 @@ module.exports = {
         image: null
       },
       stats: {
+        savedEvents: 45,
         startSyncDateStr: 'jeudi 13 février 2020 à 18:00',
         splitSourceEvents: 4,
         splitedSourceEvents: 10,
         locationErrors: 12
       }
-    },
+    }
   ]
 };
