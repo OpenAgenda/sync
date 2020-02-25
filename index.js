@@ -857,6 +857,10 @@ function timingsStrings(timings) {
 function reduceStats(stats) {
   const mergedEventsList = stats.mergedSourceEvents ? Object.values(stats.mergedSourceEvents) : [];
 
+  if (!mergedEventsList.length) {
+    return;
+  }
+
   stats.mergedSourceEvents = _.sum(mergedEventsList);
   stats.mergedEvents = mergedEventsList.length;
 }
