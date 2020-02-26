@@ -216,6 +216,8 @@ async function synchronize(options) {
       const mappedEvent = await methods.event.map(event, formSchema, oaLocations);
 
       if (!mappedEvent) {
+        upStats(stats, 'ignoredEvents');
+
         continue;
       }
 
