@@ -10,6 +10,7 @@ const moment = require('moment');
 const VError = require('verror');
 const mkdirp = require('mkdirp');
 const OaSdk = require('@openagenda/sdk-js/dist/index');
+const { hooks, withParams } = require('@feathersjs/hooks');
 const promisifyStore = require('./utils/promisifyStore');
 const isURL200 = require('./utils/isURL200');
 const statsUtil = require('./stats');
@@ -31,6 +32,22 @@ function getCircularReplacer() {
       seen.add(value);
     }
     return value;
+  };
+}
+
+function throwMissingTimings() {
+  return async (context, next) => {
+    await next();
+
+    const { result } = context;
+
+    const timings = result && result.timings && result.timings.length
+      ? result.timings.filter(Boolean)
+      : [];
+
+    if (!timings.length) {
+      throw new Error('Missing timings');
+    }
   };
 }
 
@@ -183,6 +200,16 @@ async function synchronize(options) {
     }))
   };
 
+  const mapEvent = hooks(methods.event.map, {
+    context: withParams('event', 'formSchema', 'oaLocations'),
+    middleware: [throwMissingTimings()]
+  });
+  const postMapEvent = typeof methods.event.postMap === 'function'
+    ? hooks(methods.event.postMap, {
+      context: withParams('event', 'formSchema'),
+      middleware: [throwMissingTimings()]
+    }) : null;
+
   const startSyncDate = new Date();
   log('info', `startSyncDate: ${startSyncDate.toJSON()}`);
   stats.startSyncDate = startSyncDate;
@@ -213,7 +240,7 @@ async function synchronize(options) {
 
     try {
       eventId = methods.event.getId(event);
-      const mappedEvent = await methods.event.map(event, formSchema, oaLocations);
+      const mappedEvent = await mapEvent(event, formSchema, oaLocations);
 
       if (!mappedEvent) {
         upStats(stats, 'ignoredEvents');
@@ -430,8 +457,8 @@ async function synchronize(options) {
       const timings = chunkedTimings[i];
       let event = { ...itemToCreate.data, timings };
 
-      if (typeof methods.event.postMap === 'function') {
-        event = await methods.event.postMap(event, formSchema);
+      if (typeof postMapEvent === 'function') {
+        event = await postMapEvent(event, formSchema);
       }
 
       if (!event) {
@@ -547,8 +574,8 @@ async function synchronize(options) {
           timings
         };
 
-        if (typeof methods.event.postMap === 'function') {
-          event = await methods.event.postMap(event, formSchema);
+        if (typeof postMapEvent === 'function') {
+          event = await postMapEvent(event, formSchema);
         }
 
         if (!event) {

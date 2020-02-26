@@ -10,6 +10,11 @@
     core-js-pure "^3.0.0"
     regenerator-runtime "^0.13.2"
 
+"@feathersjs/hooks@^0.4.0-alpha.0":
+  version "0.4.0-alpha.0"
+  resolved "https://registry.yarnpkg.com/@feathersjs/hooks/-/hooks-0.4.0-alpha.0.tgz#b05b1a31f415f09bc8bb672a9667a79b481977ef"
+  integrity sha512-ZWK4j+Vvpxru8oSIXJgLswm9K8V97WlUqXR+OulJs7/B0amuMph0TuWnsFADNy29Nr+E4Mb/avr8Uuln26RFBQ==
+
 "@openagenda/logs@^1.1.2":
   version "1.1.2"
   resolved "https://registry.npmjs.org/@openagenda/logs/-/logs-1.1.2.tgz#2d400bae59cf7684df76921392b4a34432916257"
