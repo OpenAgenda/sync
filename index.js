@@ -209,9 +209,10 @@ async function synchronize(options) {
     log.info(`Dispatch ${filename} (${i + 1}/${filenames.length})`);
 
     const event = JSON.parse(readFileSync(path.join(directory, 'data', filename), 'utf8'));
+    let eventId;
 
     try {
-      const eventId = methods.event.getId(event);
+      eventId = methods.event.getId(event);
       const mappedEvent = await methods.event.map(event, formSchema, oaLocations);
 
       if (!mappedEvent) {
@@ -241,7 +242,7 @@ async function synchronize(options) {
       for (const eventLocation of eventLocations) {
         let syncEvent = null;
         let location = null;
-        let locationId = undefined;
+        let locationId;
 
         try {
           locationId = methods.location.getId(eventLocation, event);
@@ -407,7 +408,7 @@ async function synchronize(options) {
       log('error', error);
       writeFileSync(
         path.join(directory, 'errors', `${startSyncDate.toISOString()}:${filename}`),
-        JSON.stringify({ error, event }, getCircularReplacer(), 2)
+        JSON.stringify({ error, event, eventId }, getCircularReplacer(), 2)
       );
     } finally {
       unlinkSync(path.join(directory, 'data', filename));
