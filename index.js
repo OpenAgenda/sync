@@ -602,7 +602,7 @@ async function synchronize(options) {
                   ) {
                     throw e;
                   }
-                });;
+                });
 
               await syncDb.events.remove({ _id: syncEvent._id }, {});
 
