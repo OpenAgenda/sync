@@ -93,15 +93,16 @@ async function sendReport(config) {
     log(`Stats on '${listKey}' is sent to: ${to.join(', ')}`);
 
     await mails.send({
+      queue: false,
       template: 'report',
       to,
       data: {
         data
       }
     });
-
-    mails.config.transporter.close();
   }
+
+  mails.config.transporter.close();
 }
 
 module.exports = {
