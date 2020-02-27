@@ -77,6 +77,20 @@ module.exports = {
         splitedSourceEvents: 10,
         locationErrors: 12
       }
+    },
+    {
+      agenda: {
+        uid: 12345678,
+        title: 'Une source vide',
+        description: 'Une source vide',
+        slug: 'source-vide',
+        url: null,
+        official: 0,
+        image: null
+      },
+      stats: {
+        startSyncDateStr: 'jeudi 13 février 2020 à 18:00'
+      }
     }
   ]
 };
