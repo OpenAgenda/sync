@@ -2,8 +2,8 @@
   <mj-head>
     <mj-style inline="inline">
       ul {
-        margin-block-start: 10px;
-        margin-block-end: 10px;
+        margin-block-start: 0;
+        margin-block-end: 0;
       }
 
       .success {
@@ -68,7 +68,7 @@
 
     <mj-section padding-top="15px" padding-bottom="0">
       <mj-column>
-        <mj-accordion padding-top="0" padding-bottom="10px">
+        <mj-accordion padding-top="0" padding-bottom="0">
           <% for (const { agenda, stats } of data) { %>
             <mj-accordion-element>
               <mj-accordion-title>
@@ -112,11 +112,11 @@
                 </small>
               </mj-accordion-title>
               <% if (stats.eventListError) { %>
-                <mj-accordion-text color="#e74c3c" padding="10px 25px 0 25px">
+                <mj-accordion-text color="#e74c3c" padding="10px 25px 10px 25px">
                   <%= JSON.stringify(stats.eventListError) %>
                 </mj-accordion-text>
               <% } else { %>
-                <mj-accordion-text padding="0">
+                <mj-accordion-text padding="10px 0 10px 0">
                   <ul>
                     <%- 'savedEvents' in stats && stats.savedEvents !== 0
                       ? `<li>Evénements présents dans la source: <b>${stats.savedEvents}</b></li>`
@@ -153,9 +153,6 @@
                   </ul>
                 </mj-accordion-text>
               <% } %>
-
-              <mj-accordion-text color="#e74c3c" padding="0 25px 10px 25px">
-              </mj-accordion-text>
             </mj-accordion-element>
           <% } %>
         </mj-accordion>
