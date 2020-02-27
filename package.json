@@ -11,7 +11,7 @@
   "dependencies": {
     "@feathersjs/hooks": "^0.4.0-alpha.0",
     "@openagenda/logs": "^1.1.2",
-    "@openagenda/mails": "^1.5.0",
+    "@openagenda/mails": "^2.0.1",
     "@openagenda/sdk-js": "^1.2.5",
     "axios": "^0.19.2",
     "lodash": "^4.17.15",

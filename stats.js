@@ -2,7 +2,7 @@
 
 const path = require('path');
 const redis = require('redis');
-const mails = require('@openagenda/mails');
+const Mails = require('@openagenda/mails');
 const promisifyRedis = require('./utils/promisifyRedis');
 
 function getClient(config) {
@@ -73,10 +73,12 @@ async function sendReport(config) {
     return;
   }
 
-  await mails.init({
+  const mails = new Mails({
     templatesDir: path.join(__dirname, 'templates'),
     ...config.mails
   });
+
+  await mails.init();
 
   const entries = Object.entries(config.sendTo);
 
@@ -90,13 +92,15 @@ async function sendReport(config) {
 
     log(`Stats on '${listKey}' is sent to: ${to.join(', ')}`);
 
-    await mails({
+    await mails.send({
       template: 'report',
       to,
       data: {
         data
       }
     });
+
+    mails.config.transporter.close();
   }
 }
 
