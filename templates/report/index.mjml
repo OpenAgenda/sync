@@ -1,14 +1,49 @@
 <mjml>
   <mj-head>
     <mj-style inline="inline">
-      .total-checksum div .success {
+      ul {
+        margin-block-start: 10px;
+        margin-block-end: 10px;
+      }
+
+      .success {
         color: #0dac50;
       }
 
-      .total-checksum div .error {
+      .error {
         color: #e74c3c;
       }
     </mj-style>
+
+    <mj-attributes>
+      <mj-accordion border="none" padding="1px" />
+      <mj-accordion-element
+        icon-wrapped-url="https://i.imgur.com/Xvw0vjq.png"
+        icon-unwrapped-url="https://i.imgur.com/KKHenWa.png"
+        icon-height="24px"
+        icon-width="24px"
+      />
+      <mj-accordion-element
+        icon-wrapped-url="https://i.imgur.com/Xvw0vjq.png"
+        icon-unwrapped-url="https://i.imgur.com/KKHenWa.png"
+        icon-height="24px"
+        icon-width="24px"
+      />
+      <mj-accordion-title
+        font-family="Roboto, Open Sans, Helvetica, Arial, sans-serif"
+        background-color="#fff"
+        color="#031017"
+        padding="15px"
+        font-size="18px"
+      />
+      <mj-accordion-text
+        font-family="Open Sans, Helvetica, Arial, sans-serif"
+        background-color="#fafafa"
+        padding="15px"
+        color="#505050"
+        font-size="14px"
+      />
+    </mj-attributes>
   </mj-head>
 
   <mj-body>
@@ -31,87 +66,100 @@
       </mj-column>
     </mj-section>
 
-    <% for (const { agenda, stats } of data) { %>
+    <mj-section padding-top="15px" padding-bottom="0">
+      <mj-column>
+        <mj-accordion padding-top="0" padding-bottom="10px">
+          <% for (const { agenda, stats } of data) { %>
+            <mj-accordion-element>
+              <mj-accordion-title>
+                <b><%= agenda.title %></b><br />
+                <small>
+                  Exécuté le <%= stats.startSyncDateStr %>
 
-      <mj-section padding-top="0" padding-bottom="10px">
-        <mj-column>
-          <mj-text padding="10px 25px 0 25px">
-            <b><%= agenda.title %></b><br />
-            Exécuté le <%= stats.startSyncDateStr %>
-          </mj-text>
+                  <% if (stats.eventListError) { %>
+                    <br />
+                    <b class="error"><u>La source de données a présenté des erreurs lors de sa lecture, la synchronisation a été
+                        interrompue.</u></b>
+                  <% } else { %>
+                    <br />
+                    Vérification des totaux: <%- (stats.savedEvents || 0)
+                    + ((stats.splitedSourceLocations || 0) - (stats.splitSourceLocations || 0))
+                    - ((stats.mergedSourceEvents || 0) - (stats.mergedEvents || 0))
+                    - (stats.eventsWithoutLocation || 0)
+                    - (stats.ignoredEvents || 0)
+                    - ((stats.createdEvents || 0) + (stats.recreatedEvents || 0) + (stats.updatedEvents || 0) + (stats.upToDateEvents || 0)) === 0
+                      ? `<span class="success">ok</span>` : `<span class="error">incorrect</span>` %>
+                  <% } %>
 
-          <% if (stats.eventListError) { %>
-            <mj-text color="#e74c3c" padding="10px 25px 0 25px">
-              <b><u>La source de données a présenté des erreurs lors de sa lecture, la synchronisation a été
-                  interrompue.</u></b>
-            </mj-text>
-            <mj-text color="#e74c3c" padding="10px 25px 0 25px">
-              <%= JSON.stringify(stats.eventListError) %>
-            </mj-text>
-          <% } else { %>
-            <mj-text padding="0">
-              <ul>
-                <%- 'savedEvents' in stats && stats.savedEvents !== 0
-                  ? `<li>Evénements présents dans la source: <b>${stats.savedEvents}</b></li>`
-                  : '<li>Aucun événement présent dans la source.</li>' %>
-                <%- 'eventsWithoutLocation' in stats
-                  ? `<li>Evénements sans lieu: <b>${stats.eventsWithoutLocation}</b></li>`
-                  : '' %>
-                <%- 'splitSourceLocations' in stats
-                  ? `<li>Evénements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${stats.splitSourceLocations}</b> -> <b>${stats.splitedSourceLocations}</b></li>`
-                  : '' %>
-                <%- 'mergedSourceEvents' in stats
-                  ? `<li>Evénements de la source fusionnés: <b>${stats.mergedSourceEvents}</b> -> <b>${stats.mergedEvents}</b></li>`
-                  : '' %>
-                <%- 'splitSourceEvents' in stats
-                  ? `<li>Evénements de la source distribués sur plusieurs événements (horaires): <b>${stats.splitSourceEvents}</b> -> <b>${stats.splitedSourceEvents}</b></li>`
-                  : '' %>
-                <%- 'ignoredEvents' in stats
-                  ? `<li>Evénements ignorés: <b>${stats.ignoredEvents}</b>`
-                  : `` %>
-                <%- 'upToDateEvents' in stats
-                  ? `<li>Evénements déjà à jour: <b>${stats.upToDateEvents}</b></li>`
-                  : '' %>
-                <%- 'createdEvents' in stats ? `<li>Evénements créés: <b>${stats.createdEvents}</b></li>` : '' %>
-                <%- 'recreatedEvents' in stats ? `<li>Evénements re-créés: <b>${stats.recreatedEvents}</b></li>` : '' %>
-                <%- 'updatedEvents' in stats ? `<li>Evénements mis à jour: <b>${stats.updatedEvents}</b></li>` : '' %>
-                <%- 'invalidImages' in stats
-                  ? `<li>Images invalides détectées: <b>${stats.invalidImages}</b></li>`
-                  : '' %>
-                <%- 'createdLocations' in stats ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
-              </ul>
-            </mj-text>
+                  <%
+                    const totalErrors = (stats.locationErrors || 0)
+                      + (stats.eventMapErrors || 0)
+                      + (stats.eventCreateErrors || 0)
+                      + (stats.eventFalsyRemoveErrors || 0)
+                      + (stats.eventRecreateErrors || 0)
+                      + (stats.eventUpdateErrors || 0)
+                      + (stats.eventCreateTimingsErrors || 0)
+                      + (stats.eventRemoveTimingsErrors || 0)
+                      + (stats.eventRemoveErrors || 0)
+                  %>
 
-            <mj-text css-class="total-checksum" padding="0 25px 0 25px">
-              Vérification des totaux: <%- (stats.savedEvents || 0)
-              + ((stats.splitedSourceLocations || 0) - (stats.splitSourceLocations || 0))
-              - ((stats.mergedSourceEvents || 0) - (stats.mergedEvents || 0))
-              - (stats.eventsWithoutLocation || 0)
-              - (stats.ignoredEvents || 0)
-              - ((stats.createdEvents || 0) + (stats.recreatedEvents || 0) + (stats.updatedEvents || 0) + (stats.upToDateEvents || 0)) === 0
-                ? `<span class="success">ok</span>` : `<span class="error">incorrect</span>` %>
-            </mj-text>
+                  <% if (totalErrors > 0) { %>
+                    <br />
+                    <span class="error">
+                      Avec un total de <b><%- totalErrors %></b> erreur<%- totalErrors > 1 ? 's' : '' %>.
+                    </span>
+                  <% } %>
+                </small>
+              </mj-accordion-title>
+              <% if (stats.eventListError) { %>
+                <mj-accordion-text color="#e74c3c" padding="10px 25px 0 25px">
+                  <%= JSON.stringify(stats.eventListError) %>
+                </mj-accordion-text>
+              <% } else { %>
+                <mj-accordion-text padding="0">
+                  <ul>
+                    <%- 'savedEvents' in stats && stats.savedEvents !== 0
+                      ? `<li>Evénements présents dans la source: <b>${stats.savedEvents}</b></li>`
+                      : '<li>Aucun événement présent dans la source.</li>' %>
+                    <%- 'eventsWithoutLocation' in stats
+                      ? `<li>Evénements sans lieu: <b>${stats.eventsWithoutLocation}</b></li>`
+                      : '' %>
+                    <%- 'splitSourceLocations' in stats
+                      ? `<li>Evénements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${stats.splitSourceLocations}</b> -> <b>${stats.splitedSourceLocations}</b></li>`
+                      : '' %>
+                    <%- 'mergedSourceEvents' in stats
+                      ? `<li>Evénements de la source fusionnés: <b>${stats.mergedSourceEvents}</b> -> <b>${stats.mergedEvents}</b></li>`
+                      : '' %>
+                    <%- 'splitSourceEvents' in stats
+                      ? `<li>Evénements de la source distribués sur plusieurs événements (horaires): <b>${stats.splitSourceEvents}</b> -> <b>${stats.splitedSourceEvents}</b></li>`
+                      : '' %>
+                    <%- 'ignoredEvents' in stats
+                      ? `<li>Evénements ignorés: <b>${stats.ignoredEvents}</b>`
+                      : `` %>
+                    <%- 'upToDateEvents' in stats
+                      ? `<li>Evénements déjà à jour: <b>${stats.upToDateEvents}</b></li>`
+                      : '' %>
+                    <%- 'createdEvents' in stats ? `<li>Evénements créés: <b>${stats.createdEvents}</b></li>` : '' %>
+                    <%- 'recreatedEvents' in stats
+                      ? `<li>Evénements re-créés: <b>${stats.recreatedEvents}</b></li>`
+                      : '' %>
+                    <%- 'updatedEvents' in stats
+                      ? `<li>Evénements mis à jour: <b>${stats.updatedEvents}</b></li>`
+                      : '' %>
+                    <%- 'invalidImages' in stats
+                      ? `<li>Images invalides détectées: <b>${stats.invalidImages}</b></li>`
+                      : '' %>
+                    <%- 'createdLocations' in stats ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
+                  </ul>
+                </mj-accordion-text>
+              <% } %>
+
+              <mj-accordion-text color="#e74c3c" padding="0 25px 10px 25px">
+              </mj-accordion-text>
+            </mj-accordion-element>
           <% } %>
-
-          <%
-            const totalErrors = (stats.locationErrors || 0)
-              + (stats.eventMapErrors || 0)
-              + (stats.eventCreateErrors || 0)
-              + (stats.eventFalsyRemoveErrors || 0)
-              + (stats.eventRecreateErrors || 0)
-              + (stats.eventUpdateErrors || 0)
-              + (stats.eventCreateTimingsErrors || 0)
-              + (stats.eventRemoveTimingsErrors || 0)
-              + (stats.eventRemoveErrors || 0)
-          %>
-
-          <% if (totalErrors > 0) { %>
-            <mj-text color="#e74c3c" padding="0 25px 0 25px">
-              Avec un total de <b><%- totalErrors %></b> erreur<%- totalErrors > 1 ? 's' : '' %>.
-            </mj-text>
-          <% } %>
-        </mj-column>
-      </mj-section>
-    <% } %>
+        </mj-accordion>
+      </mj-column>
+    </mj-section>
   </mj-body>
 </mjml>
