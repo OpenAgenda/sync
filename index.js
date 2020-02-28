@@ -36,6 +36,30 @@ function getCircularReplacer() {
   };
 }
 
+function transformFlatTimings(flatTimingDuration) {
+  return async (context, next) => {
+    await next();
+
+    const { result } = context;
+
+    if (!flatTimingDuration || !result) {
+      return;
+    }
+
+    if (result && result.timings && result.timings.length) {
+      for (const timing of result.timings) {
+        if (!timing) {
+          continue;
+        }
+
+        if (timing.begin && timing.end && moment(timing.begin).isSame(timing.end)) {
+          timing.end = moment(timing.end).add(flatTimingDuration, 'seconds').toDate();
+        }
+      }
+    }
+  };
+}
+
 function filterTimings() {
   return async (context, next) => {
     await next();
@@ -44,7 +68,7 @@ function filterTimings() {
 
     if (result && result.timings && result.timings.length) {
       result.timings = result.timings.filter(timing =>
-        (timing && timing.begin && timing.end && new Date(timing.end).getTime() > new Date(timing.begin).getTime())
+        (timing && timing.begin && timing.end && moment(timing.begin).isBefore(timing.end))
       );
     }
   };
@@ -202,7 +226,8 @@ async function synchronize(options) {
     stats,
     publicKey,
     secretKey,
-    simulate
+    simulate,
+    flatTimingDuration
   } = options;
   const agendaUid = options.agendaUid || options.agenda.uid;
 
@@ -223,14 +248,16 @@ async function synchronize(options) {
     context: withParams('event', 'formSchema', 'oaLocations'),
     middleware: [
       throwMissingTimings(),
-      filterTimings()
+      filterTimings(),
+      transformFlatTimings(flatTimingDuration)
     ]
   });
   const postMapEvent = hooks(typeof methods.event.postMap === 'function' ? methods.event.postMap : _.identity, {
     context: withParams('event', 'formSchema'),
     middleware: [
       throwMissingTimings(),
-      filterTimings()
+      filterTimings(),
+      transformFlatTimings(flatTimingDuration)
     ]
   });
 
