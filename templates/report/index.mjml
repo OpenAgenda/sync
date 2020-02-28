@@ -1,5 +1,23 @@
 <mjml>
   <mj-head>
+    <mj-style>
+      .moz-text-html input.mj-accordion-checkbox + * .mj-accordion-title {
+        cursor: auto;
+        touch-action: auto;
+        -webkit-user-select: auto;
+        -moz-user-select: auto;
+        user-select: auto;
+      }
+
+      .moz-text-html input.mj-accordion-checkbox + * .mj-accordion-content {
+        overflow: hidden;
+        display: block;
+      }
+
+      .moz-text-html input.mj-accordion-checkbox + * .mj-accordion-ico {
+        display: none;
+      }
+    </mj-style>
     <mj-style inline="inline">
       ul {
         margin-block-start: 0;
@@ -78,7 +96,8 @@
 
                   <% if (stats.eventListError) { %>
                     <br />
-                    <b class="error"><u>La source de données a présenté des erreurs lors de sa lecture, la synchronisation a été
+                    <b class="error"><u>La source de données a présenté des erreurs lors de sa lecture, la
+                        synchronisation a été
                         interrompue.</u></b>
                   <% } else { %>
                     <br />
@@ -151,7 +170,8 @@
                       : '' %>
                     <%- stats.createdLocations ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
                     <%- stats.sourceErrors && stats.sourceErrors.missingTimings && stats.sourceErrors.missingTimings.length
-                      ? `<li class="error">Événements de la source sans horaire: <b>${stats.sourceErrors.missingTimings.length}</b><br />${stats.sourceErrors.missingTimings.join(', ')}</li>`
+                      ? `<li class="error">Événements de la source sans horaire: <b>${stats.sourceErrors.missingTimings.length}</b><br />${stats.sourceErrors.missingTimings.join(
+                        ', ')}</li>`
                       : '' %>
                   </ul>
                 </mj-accordion-text>
