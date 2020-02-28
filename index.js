@@ -226,7 +226,7 @@ async function synchronize(options) {
       filterTimings()
     ]
   });
-  const postMapEvent = hooks(typeof methods.event.postMap === 'function' ? methods.event.postMap : _.noop, {
+  const postMapEvent = hooks(typeof methods.event.postMap === 'function' ? methods.event.postMap : _.identity, {
     context: withParams('event', 'formSchema'),
     middleware: [
       throwMissingTimings(),
