@@ -91,6 +91,57 @@ module.exports = {
       stats: {
         startSyncDateStr: 'jeudi 13 février 2020 à 18:00'
       }
+    },
+    {
+      agenda: {
+        uid: 12345678,
+        title: 'Une source avec des horaires manquants',
+        description: 'Une source avec des horaires manquants',
+        slug: 'source-missing-timings',
+        url: null,
+        official: 0,
+        image: null
+      },
+      stats: {
+        sourceErrors: {
+          missingTimings: [
+            13803,
+            13546,
+            12907,
+            12367,
+            12361,
+            12345,
+            11692,
+            11649,
+            11647,
+            10275,
+            10088,
+            9920,
+            9917,
+            9904,
+            9894,
+            9887,
+            9880,
+            9828,
+            9752,
+            9749,
+            9379,
+            9323,
+            9321,
+            9303,
+            9276,
+            9275,
+            9272,
+            5960
+          ]
+        },
+        savedEvents: 213,
+        startSyncDate: '2020-02-27T16:26:05.607Z',
+        startSyncDateStr: 'jeudi 27 février 2020 à 17:26',
+        invalidImages: 13,
+        eventMapErrors: 28,
+        updatedEvents: 185
+      }
     }
   ]
 };

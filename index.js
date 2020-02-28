@@ -13,8 +13,9 @@ const OaSdk = require('@openagenda/sdk-js/dist/index');
 const { hooks, withParams } = require('@feathersjs/hooks');
 const promisifyStore = require('./utils/promisifyStore');
 const isURL200 = require('./utils/isURL200');
-const statsUtil = require('./stats');
 const upStats = require('./utils/upStats');
+const SourceError = require('./utils/SourceError');
+const statsUtil = require('./stats');
 const createEvent = require('./createEvent');
 const updateEvent = require('./updateEvent');
 // Oa
@@ -35,18 +36,32 @@ function getCircularReplacer() {
   };
 }
 
+function filterTimings() {
+  return async (context, next) => {
+    await next();
+
+    const { result } = context;
+
+    if (result && result.timings && result.timings.length) {
+      result.timings = result.timings.filter(timing =>
+        (timing && timing.begin && timing.end && new Date(timing.end).getTime() > new Date(timing.begin).getTime())
+      );
+    }
+  };
+}
+
 function throwMissingTimings() {
   return async (context, next) => {
     await next();
 
     const { result } = context;
 
-    const timings = result && result.timings && result.timings.length
-      ? result.timings.filter(Boolean)
-      : [];
+    if (!result) {
+      return;
+    }
 
-    if (!timings.length) {
-      throw new Error('Missing timings');
+    if (!result.timings || !result.timings.length) {
+      throw new SourceError('Missing timings');
     }
   };
 }
@@ -100,7 +115,11 @@ module.exports = async function syncTask(options) {
     }
   }, options.methods);
 
-  const stats = {};
+  const stats = {
+    sourceErrors: {
+      missingTimings: []
+    }
+  };
 
   mkdirp.sync(path.join(directory, 'data'));
   mkdirp.sync(path.join(directory, 'errors'));
@@ -202,13 +221,27 @@ async function synchronize(options) {
 
   const mapEvent = hooks(methods.event.map, {
     context: withParams('event', 'formSchema', 'oaLocations'),
-    middleware: [throwMissingTimings()]
+    middleware: [
+      throwMissingTimings(),
+      filterTimings()
+    ]
   });
-  const postMapEvent = typeof methods.event.postMap === 'function'
-    ? hooks(methods.event.postMap, {
-      context: withParams('event', 'formSchema'),
-      middleware: [throwMissingTimings()]
-    }) : null;
+  const postMapEvent = hooks(typeof methods.event.postMap === 'function' ? methods.event.postMap : _.noop, {
+    context: withParams('event', 'formSchema'),
+    middleware: [
+      throwMissingTimings(),
+      filterTimings()
+    ]
+  });
+
+  function catchError(error, filename) {
+    log('error', error);
+
+    writeFileSync(
+      path.join(directory, 'errors', filename),
+      JSON.stringify(error, getCircularReplacer(), 2)
+    );
+  }
 
   const startSyncDate = new Date();
   log('info', `startSyncDate: ${startSyncDate.toJSON()}`);
@@ -326,20 +359,16 @@ async function synchronize(options) {
         } catch (e) {
           const error = new VError({
             cause: e,
+            message: 'Error in location phase',
             info: {
               eventId,
               eventLocation,
               mappedEvent
             }
-          }, 'Error in location phase');
+          });
 
-          upStats(stats, 'locationErrors');
-
-          log('error', error);
-          writeFileSync(
-            path.join(directory, 'errors', `${startSyncDate.toISOString()}:${eventId}.${locationId}.json`),
-            JSON.stringify({ error, event }, getCircularReplacer(), 2)
-          );
+          upStats(stats, 'locationErrors', error);
+          catchError(error, `${startSyncDate.toISOString()}:${eventId}.${locationId}.json`);
 
           continue;
         }
@@ -430,22 +459,25 @@ async function synchronize(options) {
         }
       }
     } catch (e) {
-      const error = new VError(e, 'Error in event map');
+      const error = new VError({
+        cause: e,
+        message: 'Error in event map',
+        info: {
+          eventId,
+          event
+        }
+      });
 
-      upStats(stats, 'eventMapErrors');
-
-      log('error', error);
-      writeFileSync(
-        path.join(directory, 'errors', `${startSyncDate.toISOString()}:${filename}`),
-        JSON.stringify({ error, event, eventId }, getCircularReplacer(), 2)
-      );
+      upStats(stats, 'eventMapErrors', error);
+      catchError(error, `${startSyncDate.toISOString()}:${filename}`);
     } finally {
       unlinkSync(path.join(directory, 'data', filename));
     }
   }
 
   /* PHASE 2: creates */
-  for (const itemToCreate of changes.create) {
+  for (let index = 0; index < changes.create.length; index++) {
+    const itemToCreate = changes.create[index];
     const chunkedTimings = _.chunk(itemToCreate.data.timings, 800);
 
     if (chunkedTimings.length > 1) {
@@ -457,26 +489,26 @@ async function synchronize(options) {
       const timings = chunkedTimings[i];
       let event = { ...itemToCreate.data, timings };
 
-      if (typeof postMapEvent === 'function') {
-        event = await postMapEvent(event, formSchema);
-      }
-
-      if (!event) {
-        upStats(stats, 'ignoredEvents');
-
-        continue;
-      }
-
-      log(
-        'info',
-        'CREATE EVENT',
-        {
-          eventId: itemToCreate.eventId,
-          locationId: itemToCreate.locationId
-        }
-      );
-
       try {
+        if (typeof postMapEvent === 'function') {
+          event = await postMapEvent(event, formSchema);
+        }
+
+        if (!event) {
+          upStats(stats, 'ignoredEvents');
+
+          continue;
+        }
+
+        log(
+          'info',
+          `CREATE EVENT ${index + 1}/${changes.create.length}`,
+          {
+            eventId: itemToCreate.eventId,
+            locationId: itemToCreate.locationId
+          }
+        );
+
         if (!simulate) {
           const createdEvent = await createEvent(
             event,
@@ -500,22 +532,23 @@ async function synchronize(options) {
       } catch (e) {
         const error = new VError({
           cause: e,
-          info: itemToCreate
-        }, 'Error on event create');
+          message: 'Error on event create',
+          info: {
+            correspondenceId: itemToCreate.correspondenceId,
+            event,
+            itemToCreate
+          }
+        });
 
-        upStats(stats, 'eventCreateErrors');
-
-        log('error', error);
-        writeFileSync(
-          path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToCreate.correspondenceId}:${i}.json`),
-          JSON.stringify({ error, itemToCreate, event }, getCircularReplacer(), 2)
-        );
+        upStats(stats, 'eventCreateErrors', error);
+        catchError(error, `${startSyncDate.toISOString()}:${itemToCreate.correspondenceId}:${i}.json`);
       }
     }
   }
 
   /* PHASE 3: updates */
-  for (const itemToUpdate of changes.update) {
+  for (let index = 0; index < changes.update.length; index++) {
+    const itemToUpdate = changes.update[index];
     const chunkedTimings = _.chunk(itemToUpdate.data.timings, 800);
     const syncEvents = await syncDb.events.find({ query: { correspondenceId: itemToUpdate.correspondenceId } });
 
@@ -542,7 +575,7 @@ async function synchronize(options) {
     if (!needUpdate && sameTimings) {
       log(
         'info',
-        'UPDATE EVENT (No need to update: continue)',
+        `UPDATE EVENT ${index + 1}/${changes.update.length} (No need to update: continue)`,
         {
           eventId: itemToUpdate.eventId,
           locationId: itemToUpdate.locationId
@@ -574,75 +607,78 @@ async function synchronize(options) {
           timings
         };
 
-        if (typeof postMapEvent === 'function') {
-          event = await postMapEvent(event, formSchema);
-        }
-
-        if (!event) {
-          try {
-            log(
-              'info',
-              'REMOVE falsy event',
-              {
-                eventId: itemToUpdate.eventId,
-                locationId: itemToUpdate.locationId
-              }
-            );
-
-            if (!simulate) {
-              await oa.events.delete(agendaUid, syncEvent.data.uid)
-                .catch(e => {
-                  if ( // already removed on OA
-                    !_.isMatch(e && e.response && e.response, {
-                      status: 404,
-                      body: {
-                        error: 'event not found'
-                      }
-                    })
-                  ) {
-                    throw e;
-                  }
-                });
-
-              await syncDb.events.remove({ _id: syncEvent._id }, {});
-
-              upStats(stats, 'removedFalsyEvents');
-            }
-          } catch (e) {
-            const error = new VError(e, 'Error on event remove (after event.postMap)');
-
-            upStats(stats, 'eventFalsyRemoveErrors');
-
-            log('error', error);
-            writeFileSync(
-              path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
-              JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
-            );
-          }
-
-          continue;
-        }
-
-        log(
-          'info',
-          'UPDATE EVENT',
-          {
-            eventId: itemToUpdate.eventId,
-            locationId: itemToUpdate.locationId
-          }
-        );
-        // console.log( JSON.stringify( _.orderBy( _.flatten( syncEvents.map( v => v.data.timings ) ), [ 'begin', 'end' ] ) ) );
-        // console.log( JSON.stringify( _.orderBy( timingsStrings( itemToUpdate.data.timings ), [ 'begin', 'end' ] ) ) );
-        // console.log( 'sameTimings', sameTimings );
-        // console.log(
-        //   _.differenceWith(
-        //     _.orderBy( _.flatten( syncEvents.map( v => v.data.timings ) ), [ 'begin', 'end' ] ),
-        //     _.orderBy( timingsStrings( itemToUpdate.data.timings ), [ 'begin', 'end' ] ),
-        //     _.isEqual
-        //   )
-        // );
-
         try {
+          if (typeof postMapEvent === 'function') {
+            event = await postMapEvent(event, formSchema);
+          }
+
+          if (!event) {
+            try {
+              log(
+                'info',
+                `REMOVE falsy event ${index + 1}/${changes.update.length}`,
+                {
+                  eventId: itemToUpdate.eventId,
+                  locationId: itemToUpdate.locationId
+                }
+              );
+
+              if (!simulate) {
+                await oa.events.delete(agendaUid, syncEvent.data.uid)
+                  .catch(e => {
+                    if ( // already removed on OA
+                      !_.isMatch(e && e.response && e.response, {
+                        status: 404,
+                        body: {
+                          error: 'event not found'
+                        }
+                      })
+                    ) {
+                      throw e;
+                    }
+                  });
+
+                await syncDb.events.remove({ _id: syncEvent._id }, {});
+
+                upStats(stats, 'removedFalsyEvents');
+              }
+            } catch (e) {
+              const error = new VError({
+                cause: e,
+                message: 'Error on event remove (after event.postMap)',
+                info: {
+                  correspondenceId: itemToUpdate.correspondenceId,
+                  event,
+                  itemToUpdate
+                }
+              });
+
+              upStats(stats, 'eventFalsyRemoveErrors', error);
+              catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
+            }
+
+            continue;
+          }
+
+          log(
+            'info',
+            `UPDATE EVENT ${index + 1}/${changes.update.length}`,
+            {
+              eventId: itemToUpdate.eventId,
+              locationId: itemToUpdate.locationId
+            }
+          );
+          // console.log( JSON.stringify( _.orderBy( _.flatten( syncEvents.map( v => v.data.timings ) ), [ 'begin', 'end' ] ) ) );
+          // console.log( JSON.stringify( _.orderBy( timingsStrings( itemToUpdate.data.timings ), [ 'begin', 'end' ] ) ) );
+          // console.log( 'sameTimings', sameTimings );
+          // console.log(
+          //   _.differenceWith(
+          //     _.orderBy( _.flatten( syncEvents.map( v => v.data.timings ) ), [ 'begin', 'end' ] ),
+          //     _.orderBy( timingsStrings( itemToUpdate.data.timings ), [ 'begin', 'end' ] ),
+          //     _.isEqual
+          //   )
+          // );
+
           if (!simulate) {
             const updatedEvent = await updateEvent(
               syncEvent.data.uid,
@@ -692,28 +728,34 @@ async function synchronize(options) {
 
               upStats(stats, 'recreatedEvents');
             } catch (e) {
-              const error = new VError(e, 'Error on event recreate');
+              const error = new VError({
+                cause: e,
+                message: 'Error on event recreate',
+                info: {
+                  correspondenceId: itemToUpdate.correspondenceId,
+                  syncEvent,
+                  itemToUpdate
+                }
+              });
 
-              upStats(stats, 'eventRecreateErrors');
-
-              log('error', error);
-              writeFileSync(
-                path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
-                JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
-              );
+              upStats(stats, 'eventRecreateErrors', error);
+              catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
             }
           } else {
             ignoredDeletes.push(syncEvent.data.uid);
 
-            const error = new VError(e, 'Error on event update');
+            const error = new VError({
+              cause: e,
+              message: 'Error on event update',
+              info: {
+                correspondenceId: itemToUpdate.correspondenceId,
+                syncEvent,
+                itemToUpdate
+              }
+            });
 
-            upStats(stats, 'eventUpdateErrors');
-
-            log('error', error);
-            writeFileSync(
-              path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
-              JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
-            );
+            upStats(stats, 'eventUpdateErrors', error);
+            catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
           }
         }
       } else {
@@ -735,7 +777,7 @@ async function synchronize(options) {
 
         log(
           'info',
-          'UPDATE EVENT (one more for new timings)',
+          `UPDATE EVENT ${index + 1}/${changes.update.length} (one more for new timings)`,
           {
             eventId: itemToUpdate.eventId,
             locationId: itemToUpdate.locationId
@@ -764,15 +806,18 @@ async function synchronize(options) {
 
           upStats(stats, 'createdEvents');
         } catch (e) {
-          const error = new VError(e, 'Error on event update (one more for new timings)');
+          const error = new VError({
+            cause: e,
+            message: 'Error on event update (one more for new timings)',
+            info: {
+              correspondenceId: itemToUpdate.correspondenceId,
+              syncEvent,
+              itemToUpdate
+            }
+          });
 
-          upStats(stats, 'eventCreateTimingsErrors');
-
-          log('error', error);
-          writeFileSync(
-            path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
-            JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
-          );
+          upStats(stats, 'eventCreateTimingsErrors', error);
+          catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
         }
       }
     }
@@ -806,15 +851,18 @@ async function synchronize(options) {
           }
         );
       } catch (e) {
-        const error = new VError(e, 'Error on event update (one less for removed timings)');
+        const error = new VError({
+          cause: e,
+          message: 'Error on event update (one less for removed timings)',
+          info: {
+            correspondenceId: itemToUpdate.correspondenceId,
+            syncEvent,
+            itemToUpdate
+          }
+        });
 
-        upStats(stats, 'eventRemoveTimingsErrors');
-
-        log('error', error);
-        writeFileSync(
-          path.join(directory, 'errors', `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`),
-          JSON.stringify({ error, itemToUpdate, syncEvent }, getCircularReplacer(), 2)
-        );
+        upStats(stats, 'eventRemoveTimingsErrors', error);
+        catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
       }
     }
   }
@@ -835,7 +883,9 @@ async function synchronize(options) {
     }
   });
 
-  for (const eventToRemove of eventsToRemove) {
+  for (let index = 0; index < eventsToRemove.length; index++) {
+    const eventToRemove = eventsToRemove[index];
+
     try {
       if (!simulate) {
         await oa.events.delete(agendaUid, eventToRemove.data.uid)
@@ -859,20 +909,17 @@ async function synchronize(options) {
 
       upStats(stats, 'removedEvents');
     } catch (e) {
-      const error = new VError(e, 'Error on event remove');
-
-      upStats(stats, 'eventRemoveErrors');
-
-      log('error', error);
-      writeFileSync(
-        path.join(directory, 'errors', `${startSyncDate.toISOString()}:${eventToRemove.data.uid}.json`),
-        JSON.stringify({ error, eventToRemove }, getCircularReplacer(), 2)
-      );
-
-      log('error', new VError({
+      const error = new VError({
         cause: e,
-        info: eventToRemove
-      }, 'Error on event remove'));
+        message: 'Error on event remove',
+        info: {
+          oaEventUid: eventToRemove.data.uid,
+          eventToRemove
+        }
+      });
+
+      upStats(stats, 'eventRemoveErrors', error);
+      catchError(error, `${startSyncDate.toISOString()}:${eventToRemove.data.uid}.json`);
     }
   }
 }

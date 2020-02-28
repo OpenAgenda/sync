@@ -118,38 +118,41 @@
               <% } else { %>
                 <mj-accordion-text padding="10px 0 10px 0">
                   <ul>
-                    <%- 'savedEvents' in stats && stats.savedEvents !== 0
+                    <%- stats.savedEvents
                       ? `<li>Evénements présents dans la source: <b>${stats.savedEvents}</b></li>`
                       : '<li>Aucun événement présent dans la source.</li>' %>
-                    <%- 'eventsWithoutLocation' in stats
+                    <%- stats.eventsWithoutLocation
                       ? `<li>Evénements sans lieu: <b>${stats.eventsWithoutLocation}</b></li>`
                       : '' %>
-                    <%- 'splitSourceLocations' in stats
+                    <%- stats.splitSourceLocations
                       ? `<li>Evénements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${stats.splitSourceLocations}</b> -> <b>${stats.splitedSourceLocations}</b></li>`
                       : '' %>
-                    <%- 'mergedSourceEvents' in stats
+                    <%- stats.mergedSourceEvents
                       ? `<li>Evénements de la source fusionnés: <b>${stats.mergedSourceEvents}</b> -> <b>${stats.mergedEvents}</b></li>`
                       : '' %>
-                    <%- 'splitSourceEvents' in stats
+                    <%- stats.splitSourceEvents
                       ? `<li>Evénements de la source distribués sur plusieurs événements (horaires): <b>${stats.splitSourceEvents}</b> -> <b>${stats.splitedSourceEvents}</b></li>`
                       : '' %>
-                    <%- 'ignoredEvents' in stats
+                    <%- stats.ignoredEvents
                       ? `<li>Evénements ignorés: <b>${stats.ignoredEvents}</b>`
                       : `` %>
-                    <%- 'upToDateEvents' in stats
+                    <%- stats.upToDateEvents
                       ? `<li>Evénements déjà à jour: <b>${stats.upToDateEvents}</b></li>`
                       : '' %>
-                    <%- 'createdEvents' in stats ? `<li>Evénements créés: <b>${stats.createdEvents}</b></li>` : '' %>
-                    <%- 'recreatedEvents' in stats
+                    <%- stats.createdEvents ? `<li>Evénements créés: <b>${stats.createdEvents}</b></li>` : '' %>
+                    <%- stats.recreatedEvents
                       ? `<li>Evénements re-créés: <b>${stats.recreatedEvents}</b></li>`
                       : '' %>
-                    <%- 'updatedEvents' in stats
+                    <%- stats.updatedEvents
                       ? `<li>Evénements mis à jour: <b>${stats.updatedEvents}</b></li>`
                       : '' %>
-                    <%- 'invalidImages' in stats
+                    <%- stats.invalidImages
                       ? `<li>Images invalides détectées: <b>${stats.invalidImages}</b></li>`
                       : '' %>
-                    <%- 'createdLocations' in stats ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
+                    <%- stats.createdLocations ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
+                    <%- stats.sourceErrors && stats.sourceErrors.missingTimings && stats.sourceErrors.missingTimings.length
+                      ? `<li class="error">Événements de la source sans horaire: <b>${stats.sourceErrors.missingTimings.length}</b><br />${stats.sourceErrors.missingTimings.join(', ')}</li>`
+                      : '' %>
                   </ul>
                 </mj-accordion-text>
               <% } %>
