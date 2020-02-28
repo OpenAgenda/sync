@@ -86,7 +86,7 @@
 
     <mj-section padding-top="15px" padding-bottom="0">
       <mj-column>
-        <mj-accordion padding-top="0" padding-bottom="0">
+        <mj-accordion padding-top="0" padding-bottom="10px">
           <% for (const { agenda, stats } of data) { %>
             <mj-accordion-element>
               <mj-accordion-title>
@@ -179,6 +179,10 @@
             </mj-accordion-element>
           <% } %>
         </mj-accordion>
+
+        <mj-text padding="10px 15px 10px 15px">
+          <a href="https://openagenda.zendesk.com/hc/fr/articles/360012200019">Explication du rapport de synchronisation</a>
+        </mj-text>
       </mj-column>
     </mj-section>
   </mj-body>
