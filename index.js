@@ -517,9 +517,7 @@ async function synchronize(options) {
       let event = { ...itemToCreate.data, timings };
 
       try {
-        if (typeof postMapEvent === 'function') {
-          event = await postMapEvent(event, formSchema);
-        }
+        event = await postMapEvent(event, formSchema);
 
         if (!event) {
           upStats(stats, 'ignoredEvents');
@@ -792,9 +790,7 @@ async function synchronize(options) {
           timings
         };
 
-        if (typeof methods.event.postMap === 'function') {
-          event = await methods.event.postMap(event, formSchema);
-        }
+        event = await postMapEvent(event, formSchema);
 
         if (!event) {
           upStats(stats, 'ignoredEvents');
