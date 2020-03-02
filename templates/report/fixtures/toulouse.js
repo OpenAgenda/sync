@@ -129,10 +129,7 @@ module.exports = {
             9323,
             9321,
             9303,
-            9276,
-            9275,
-            9272,
-            5960
+            9276
           ]
         },
         savedEvents: 213,
@@ -140,7 +137,8 @@ module.exports = {
         startSyncDateStr: 'jeudi 27 février 2020 à 17:26',
         invalidImages: 13,
         eventMapErrors: 28,
-        updatedEvents: 185
+        updatedEvents: 185,
+        oaRequestErrors: 3
       }
     }
   ]

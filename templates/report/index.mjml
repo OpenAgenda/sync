@@ -173,6 +173,9 @@
                       ? `<li class="error">Événements de la source sans horaire: <b>${stats.sourceErrors.missingTimings.length}</b><br />${stats.sourceErrors.missingTimings.join(
                         ', ')}</li>`
                       : '' %>
+                    <%- stats.oaRequestErrors
+                      ? `<li class="error">Erreurs provenants des requêtes vers OpenAgenda: <b>${stats.oaRequestErrors}</b></li>`
+                      : '' %>
                   </ul>
                 </mj-accordion-text>
               <% } %>

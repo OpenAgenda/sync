@@ -31,6 +31,12 @@ module.exports = function upStats(stats, key, errorOrIncrement = 1) {
       if (sourceError.message === 'Missing timings') {
         stats.sourceErrors.missingTimings.push(id);
       }
+    } else {
+      const host = _.get(errorOrIncrement, 'response.request.host');
+
+      if (host && host.split('.').slice(-2).join('.') === 'openagenda.com') {
+        _.set(stats, 'oaRequestErrors', _.get(stats, 'oaRequestErrors', 0) + 1);
+      }
     }
 
     _.set(stats, key, _.get(stats, key, 0) + 1);
