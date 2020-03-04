@@ -1,3 +1,9 @@
+<%
+function formatNumber(x) {
+  return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+%>
+
 <mjml>
   <mj-head>
     <mj-style>
@@ -16,6 +22,15 @@
 
       .moz-text-html input.mj-accordion-checkbox + * .mj-accordion-ico {
         display: none;
+      }
+
+      a {
+        color: #41acdd;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
       }
     </mj-style>
     <mj-style inline="inline">
@@ -78,21 +93,26 @@
       </mj-column>
     </mj-section>
 
-    <mj-section padding-bottom="0">
+    <mj-section padding="10px 0">
       <mj-column>
-        <mj-text font-size="22px">Rapport de synchronisation</mj-text>
+        <mj-text font-size="22px" padding="0 15px">Rapport de synchronisation</mj-text>
       </mj-column>
     </mj-section>
 
-    <mj-section padding-top="15px" padding-bottom="0">
+    <mj-section>
       <mj-column>
-        <mj-accordion padding-top="0" padding-bottom="10px">
+        <mj-text padding="10px 15px 10px 15px">
+          <a href="https://openagenda.zendesk.com/hc/fr/articles/360012200019">Explication du rapport de
+            synchronisation</a>
+        </mj-text>
+
+        <mj-accordion>
           <% for (const { agenda, stats } of data) { %>
             <mj-accordion-element>
               <mj-accordion-title>
-                <b><%= agenda.title %></b><br />
+                <b><a href="https://openagenda.com/<%= agenda.slug %>"><%= agenda.title %></a></b><br />
                 <small>
-                  Exécuté le <%= stats.startSyncDateStr %>
+                  Synchronisation du <%= stats.startSyncDateStr %>
 
                   <% if (stats.eventListError) { %>
                     <br />
@@ -111,7 +131,8 @@
                   <% } %>
 
                   <%
-                    const totalErrors = (stats.locationErrors || 0)
+                    const totalErrors = formatNumber(
+                      (stats.locationErrors || 0)
                       + (stats.eventMapErrors || 0)
                       + (stats.eventCreateErrors || 0)
                       + (stats.eventFalsyRemoveErrors || 0)
@@ -120,12 +141,13 @@
                       + (stats.eventCreateTimingsErrors || 0)
                       + (stats.eventRemoveTimingsErrors || 0)
                       + (stats.eventRemoveErrors || 0)
+                    );
                   %>
 
                   <% if (totalErrors > 0) { %>
                     <br />
                     <span class="error">
-                      Avec un total de <b><%- totalErrors %></b> erreur<%- totalErrors > 1 ? 's' : '' %>.
+                      Avec un total de <b><%- formatNumber(totalErrors) %></b> erreur<%- totalErrors > 1 ? 's' : '' %>.
                     </span>
                   <% } %>
                 </small>
@@ -138,43 +160,43 @@
                 <mj-accordion-text padding="10px 0 10px 0">
                   <ul>
                     <%- stats.savedEvents
-                      ? `<li>Evénements présents dans la source: <b>${stats.savedEvents}</b></li>`
+                      ? `<li>Événements présents dans la source: <b>${formatNumber(stats.savedEvents)}</b></li>`
                       : '<li>Aucun événement présent dans la source.</li>' %>
                     <%- stats.eventsWithoutLocation
-                      ? `<li>Evénements sans lieu: <b>${stats.eventsWithoutLocation}</b></li>`
+                      ? `<li>Événements sans lieu: <b>${formatNumber(stats.eventsWithoutLocation)}</b></li>`
                       : '' %>
                     <%- stats.splitSourceLocations
-                      ? `<li>Evénements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${stats.splitSourceLocations}</b> -> <b>${stats.splitedSourceLocations}</b></li>`
+                      ? `<li>Événements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${formatNumber(stats.splitSourceLocations)}</b> -> <b>${formatNumber(stats.splitedSourceLocations)}</b></li>`
                       : '' %>
                     <%- stats.mergedSourceEvents
-                      ? `<li>Evénements de la source fusionnés: <b>${stats.mergedSourceEvents}</b> -> <b>${stats.mergedEvents}</b></li>`
+                      ? `<li>Événements de la source fusionnés: <b>${formatNumber(stats.mergedSourceEvents)}</b> -> <b>${formatNumber(stats.mergedEvents)}</b></li>`
                       : '' %>
                     <%- stats.splitSourceEvents
-                      ? `<li>Evénements de la source distribués sur plusieurs événements (horaires): <b>${stats.splitSourceEvents}</b> -> <b>${stats.splitedSourceEvents}</b></li>`
+                      ? `<li>Événements de la source distribués sur plusieurs événements (horaires): <b>${formatNumber(stats.splitSourceEvents)}</b> -> <b>${formatNumber(stats.splitedSourceEvents)}</b></li>`
                       : '' %>
                     <%- stats.ignoredEvents
-                      ? `<li>Evénements ignorés: <b>${stats.ignoredEvents}</b>`
+                      ? `<li>Événements ignorés: <b>${formatNumber(stats.ignoredEvents)}</b>`
                       : `` %>
                     <%- stats.upToDateEvents
-                      ? `<li>Evénements déjà à jour: <b>${stats.upToDateEvents}</b></li>`
+                      ? `<li>Événements déjà à jour: <b>${formatNumber(stats.upToDateEvents)}</b></li>`
                       : '' %>
-                    <%- stats.createdEvents ? `<li>Evénements créés: <b>${stats.createdEvents}</b></li>` : '' %>
+                    <%- stats.createdEvents ? `<li>Événements créés: <b>${formatNumber(stats.createdEvents)}</b></li>` : '' %>
                     <%- stats.recreatedEvents
-                      ? `<li>Evénements re-créés: <b>${stats.recreatedEvents}</b></li>`
+                      ? `<li>Événements re-créés: <b>${formatNumber(stats.recreatedEvents)}</b></li>`
                       : '' %>
                     <%- stats.updatedEvents
-                      ? `<li>Evénements mis à jour: <b>${stats.updatedEvents}</b></li>`
+                      ? `<li>Événements mis à jour: <b>${formatNumber(stats.updatedEvents)}</b></li>`
                       : '' %>
                     <%- stats.invalidImages
-                      ? `<li>Images invalides détectées: <b>${stats.invalidImages}</b></li>`
+                      ? `<li>Images invalides détectées: <b>${formatNumber(stats.invalidImages)}</b></li>`
                       : '' %>
-                    <%- stats.createdLocations ? `<li>Lieux créés: <b>${stats.createdLocations}</b></li>` : '' %>
+                    <%- stats.createdLocations ? `<li>Lieux créés: <b>${formatNumber(stats.createdLocations)}</b></li>` : '' %>
                     <%- stats.sourceErrors && stats.sourceErrors.missingTimings && stats.sourceErrors.missingTimings.length
-                      ? `<li class="error">Événements de la source sans horaire: <b>${stats.sourceErrors.missingTimings.length}</b><br />${stats.sourceErrors.missingTimings.join(
+                      ? `<li class="error">Événements de la source sans horaire: <b>${formatNumber(stats.sourceErrors.missingTimings.length)}</b><br />${stats.sourceErrors.missingTimings.join(
                         ', ')}</li>`
                       : '' %>
                     <%- stats.oaRequestErrors
-                      ? `<li class="error">Erreurs provenants des requêtes vers OpenAgenda: <b>${stats.oaRequestErrors}</b></li>`
+                      ? `<li class="error">Erreurs provenants des requêtes vers OpenAgenda: <b>${formatNumber(stats.oaRequestErrors)}</b></li>`
                       : '' %>
                   </ul>
                 </mj-accordion-text>
@@ -182,10 +204,6 @@
             </mj-accordion-element>
           <% } %>
         </mj-accordion>
-
-        <mj-text padding="10px 15px 10px 15px">
-          <a href="https://openagenda.zendesk.com/hc/fr/articles/360012200019">Explication du rapport de synchronisation</a>
-        </mj-text>
       </mj-column>
     </mj-section>
   </mj-body>

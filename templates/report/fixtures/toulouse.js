@@ -18,8 +18,8 @@ module.exports = {
       },
       stats: {
         startSyncDateStr: 'jeudi 13 février 2020 à 15:00',
-        savedEvents: 14,
-        upToDateEvents: 14
+        savedEvents: 14000,
+        upToDateEvents: 14000
       }
     },
     {
