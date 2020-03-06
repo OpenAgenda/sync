@@ -191,8 +191,13 @@ function formatNumber(x) {
                       ? `<li>Images invalides détectées: <b>${formatNumber(stats.invalidImages)}</b></li>`
                       : '' %>
                     <%- stats.createdLocations ? `<li>Lieux créés: <b>${formatNumber(stats.createdLocations)}</b></li>` : '' %>
+
                     <%- stats.sourceErrors && stats.sourceErrors.missingTimings && stats.sourceErrors.missingTimings.length
                       ? `<li class="error">Événements de la source sans horaire: <b>${formatNumber(stats.sourceErrors.missingTimings.length)}</b><br />${stats.sourceErrors.missingTimings.join(
+                        ', ')}</li>`
+                      : '' %>
+                    <%- stats.sourceErrors && stats.sourceErrors.missingLocation && stats.sourceErrors.missingLocation.length
+                      ? `<li class="error">Événements de la source sans lieu: <b>${formatNumber(stats.sourceErrors.missingLocation.length)}</b><br />${stats.sourceErrors.missingLocation.join(
                         ', ')}</li>`
                       : '' %>
                     <%- stats.oaRequestErrors

@@ -16,6 +16,14 @@ function findCauseByType(err, type) {
   return null;
 }
 
+function pushTo(stats, key, value) {
+  if (!_.get(stats, key)) {
+    _.set(stats, key, []);
+  }
+
+  _.get(stats, key).push(value);
+}
+
 module.exports = function upStats(stats, key, errorOrIncrement = 1) {
   if (!stats) {
     return
@@ -28,8 +36,15 @@ module.exports = function upStats(stats, key, errorOrIncrement = 1) {
       const info = VError.info(errorOrIncrement);
       const id = info.correspondenceId || info.eventId;
 
-      if (sourceError.message === 'Missing timings') {
-        stats.sourceErrors.missingTimings.push(id);
+      switch (sourceError.message) {
+        case 'Missing timings':
+          pushTo(stats, 'sourceErrors.missingTimings', id);
+          break;
+        case 'Missing location':
+          pushTo(stats, 'sourceErrors.missingLocation', id);
+          break;
+        default:
+          break;
       }
     } else {
       const host = _.get(errorOrIncrement, 'response.request.host');

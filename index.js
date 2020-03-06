@@ -139,11 +139,7 @@ module.exports = async function syncTask(options) {
     }
   }, options.methods);
 
-  const stats = {
-    sourceErrors: {
-      missingTimings: []
-    }
-  };
+  const stats = {};
 
   mkdirp.sync(path.join(directory, 'data'));
   mkdirp.sync(path.join(directory, 'errors'));
@@ -320,7 +316,7 @@ async function synchronize(options) {
       delete mappedEvent.locations;
 
       if (eventLocations.length === 0) {
-        upStats(stats, 'eventsWithoutLocation');
+        throw new SourceError('Missing location');
       }
 
       if (eventLocations.length > 1) {
