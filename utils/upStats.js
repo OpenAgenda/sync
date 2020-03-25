@@ -47,7 +47,9 @@ module.exports = function upStats(stats, key, errorOrIncrement = 1) {
           break;
       }
     } else {
-      const host = _.get(errorOrIncrement, 'response.request.host');
+      const host = errorOrIncrement.isAxiosError
+        ? new URL(errorOrIncrement.config.url).host
+        : _.get(errorOrIncrement, 'response.request.host');
 
       if (host && host.split('.').slice(-2).join('.') === 'openagenda.com') {
         _.set(stats, 'oaRequestErrors', _.get(stats, 'oaRequestErrors', 0) + 1);
