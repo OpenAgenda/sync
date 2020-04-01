@@ -1,7 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
-const upStats = require('./utils/upStats');
+const upStats = require('./upStats');
 
 module.exports = async function createEvent(
   mappedEvent,

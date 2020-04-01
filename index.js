@@ -9,12 +9,12 @@ const Nedb = require('nedb');
 const moment = require('moment');
 const VError = require('verror');
 const mkdirp = require('mkdirp');
-const OaSdk = require('@openagenda/sdk-js/dist/index');
+const OaSdk = require('@openagenda/sdk-js');
 const { hooks, withParams } = require('@feathersjs/hooks');
 const promisifyStore = require('./utils/promisifyStore');
 const isURL200 = require('./utils/isURL200');
-const upStats = require('./utils/upStats');
-const SourceError = require('./utils/SourceError');
+const upStats = require('./upStats');
+const SourceError = require('./errors/SourceError');
 const statsUtil = require('./stats');
 const createEvent = require('./createEvent');
 const updateEvent = require('./updateEvent');
@@ -22,6 +22,10 @@ const updateEvent = require('./updateEvent');
 const getFormSchema = require('./getFormSchema');
 const listOaLocations = require('./listOaLocations');
 const listSavedEvents = require('./listSavedEvents');
+const potentialOaError = require('./potentialOaError');
+const filterTimings = require('./hooks/filterTimings');
+const throwMissingTimings = require('./hooks/throwMissingTimings');
+const transformFlatTimings = require('./hooks/transformFlatTimings');
 
 function getCircularReplacer() {
   const seen = new WeakSet();
@@ -35,61 +39,6 @@ function getCircularReplacer() {
     return value;
   };
 }
-
-function transformFlatTimings(flatTimingDuration) {
-  return async (context, next) => {
-    await next();
-
-    const { result } = context;
-
-    if (!flatTimingDuration || !result) {
-      return;
-    }
-
-    if (result && result.timings && result.timings.length) {
-      for (const timing of result.timings) {
-        if (!timing) {
-          continue;
-        }
-
-        if (timing.begin && timing.end && moment(timing.begin).isSame(timing.end)) {
-          timing.end = moment(timing.end).add(flatTimingDuration, 'seconds').toDate();
-        }
-      }
-    }
-  };
-}
-
-function filterTimings() {
-  return async (context, next) => {
-    await next();
-
-    const { result } = context;
-
-    if (result && result.timings && result.timings.length) {
-      result.timings = result.timings.filter(timing =>
-        (timing && timing.begin && timing.end && moment(timing.begin).isBefore(timing.end))
-      );
-    }
-  };
-}
-
-function throwMissingTimings() {
-  return async (context, next) => {
-    await next();
-
-    const { result } = context;
-
-    if (!result) {
-      return;
-    }
-
-    if (!result.timings || !result.timings.length) {
-      throw new SourceError('Missing timings');
-    }
-  };
-}
-
 
 // Defauts
 const defaultGetLocation = (locationId, eventLocation) => eventLocation;
@@ -352,7 +301,7 @@ async function synchronize(options) {
               location = mappedLocation;
 
               if (!simulate) {
-                location = await oa.locations.create(agendaUid, mappedLocation);
+                location = await potentialOaError(oa.locations.create(agendaUid, mappedLocation));
 
                 await syncDb.locations.insert({
                   correspondenceId: locationId,
@@ -645,7 +594,7 @@ async function synchronize(options) {
               );
 
               if (!simulate) {
-                await oa.events.delete(agendaUid, syncEvent.data.uid)
+                await potentialOaError(oa.events.delete(agendaUid, syncEvent.data.uid)
                   .catch(e => {
                     if ( // already removed on OA
                       !_.isMatch(e && e.response && e.response, {
@@ -657,7 +606,7 @@ async function synchronize(options) {
                     ) {
                       throw e;
                     }
-                  });
+                  }));
 
                 await syncDb.events.remove({ _id: syncEvent._id }, {});
 
@@ -846,7 +795,7 @@ async function synchronize(options) {
 
       try {
         if (!simulate) {
-          await oa.events.delete(agendaUid, syncEvent.data.uid)
+          await potentialOaError(oa.events.delete(agendaUid, syncEvent.data.uid)
             .catch(e => {
               if ( // already removed on OA
                 !_.isMatch(e && e.response && e.response, {
@@ -858,7 +807,7 @@ async function synchronize(options) {
               ) {
                 throw e;
               }
-            });
+            }));
         }
 
         log(
@@ -907,7 +856,7 @@ async function synchronize(options) {
 
     try {
       if (!simulate) {
-        await oa.events.delete(agendaUid, eventToRemove.data.uid)
+        await potentialOaError(oa.events.delete(agendaUid, eventToRemove.data.uid)
           .catch(e => {
             if ( // already removed on OA
               !_.isMatch(e && e.response && e.response, {
@@ -919,7 +868,7 @@ async function synchronize(options) {
             ) {
               throw e;
             }
-          });
+          }));
 
         await syncDb.events.remove({ _id: eventToRemove._id }, {});
       }
@@ -966,7 +915,7 @@ async function pushStats(config, stats) {
     return;
   }
 
-  const { data: agenda } = await axios.get(`https://openagenda.com/agendas/${config.agenda.uid}`);
+  const { data: agenda } = await potentialOaError(axios.get(`https://openagenda.com/agendas/${config.agenda.uid}`));
 
   await statsUtil.push(config, {
     agenda,

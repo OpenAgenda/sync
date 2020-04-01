@@ -1,4 +1,5 @@
 const axios = require('axios');
+const OaError = require('./errors/OaError');
 
 module.exports = async function listOaLocations(agendaUid, log) {
   let result = [];
@@ -17,7 +18,10 @@ module.exports = async function listOaLocations(agendaUid, log) {
 };
 
 async function listLocations(agendaUid, offset, limit) {
-  const { data } = await axios.get(`https://openagenda.com/agendas/${agendaUid}/locations.json?offset=${offset}&limit=${limit}`);
+  const { data } = await axios.get(`https://openagenda.com/agendas/${agendaUid}/locations.json?offset=${offset}&limit=${limit}`)
+    .catch(error => {
+      throw new OaError(error)
+    });
 
   return data;
 }
