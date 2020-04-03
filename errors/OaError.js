@@ -2,6 +2,6 @@
 
 const VError = require('verror');
 
-module.exports = class SourceError extends VError {
-  name = 'SourceError'
+module.exports = class OaError extends VError {
+  name = 'OaError'
 }

@@ -2,6 +2,7 @@
 
 const _ = require('lodash');
 const upStats = require('./upStats');
+const OaError = require('./errors/OaError');
 
 module.exports = async function updateEvent(
   oaEventUid,
@@ -24,7 +25,7 @@ module.exports = async function updateEvent(
       mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
       ({ event: updatedEvent } = await oa.events.update(agendaUid, oaEventUid, mappedEvent));
     } else {
-      throw e;
+      throw new OaError(e);
     }
   }
 

@@ -2,6 +2,7 @@
 
 const _ = require('lodash');
 const upStats = require('./upStats');
+const OaError = require('./errors/OaError');
 
 module.exports = async function createEvent(
   mappedEvent,
@@ -36,7 +37,7 @@ module.exports = async function createEvent(
       mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
       ({ event: createdEvent } = await oa.events.create(agendaUid, mappedEvent));
     } else {
-      throw e2;
+      throw new OaError(e2);
     }
   }
 
