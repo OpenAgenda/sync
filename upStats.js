@@ -22,7 +22,11 @@ function pushTo(stats, key, value) {
     _.set(stats, key, []);
   }
 
-  _.get(stats, key).push(value);
+  const array = _.get(stats, key);
+
+  if (!array.includes(value)) {
+    array.push(value);
+  }
 }
 
 module.exports = function upStats(stats, key, errorOrIncrement = 1) {
