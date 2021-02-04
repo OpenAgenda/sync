@@ -88,7 +88,7 @@ function formatNumber(x) {
           src="https://openagenda.com/images/openagenda.png"
           href="https://openagenda.com/"
           padding="0"
-          alt="logo"
+          alt=""
         />
       </mj-column>
     </mj-section>
