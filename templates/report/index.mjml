@@ -200,6 +200,9 @@ function formatNumber(x) {
                       ? `<li class="error">Événements de la source sans lieu: <b>${formatNumber(stats.sourceErrors.missingLocation.length)}</b><br />${stats.sourceErrors.missingLocation.join(
                         ', ')}</li>`
                       : '' %>
+                    <%- stats.locationErrors
+                      ? `<li class="error">Erreurs lors de la récupération du lieu: <b>${formatNumber(stats.locationErrors)}</b></li>`
+                      : '' %>
                     <%- stats.oaRequestErrors
                       ? `<li class="error">Erreurs provenants des requêtes vers OpenAgenda: <b>${formatNumber(stats.oaRequestErrors)}</b></li>`
                       : '' %>
