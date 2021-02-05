@@ -26,7 +26,11 @@ function pushTo(stats, key, value) {
 
   if (!array.includes(value)) {
     array.push(value);
+
+    return true;
   }
+
+  return false;
 }
 
 module.exports = function upStats(stats, key, errorOrIncrement = 1) {
@@ -50,16 +54,22 @@ module.exports = function upStats(stats, key, errorOrIncrement = 1) {
 
     switch (sourceError.message) {
       case 'Missing timings':
-        pushTo(stats, 'sourceErrors.missingTimings', id);
+        if (!pushTo(stats, 'sourceErrors.missingTimings', id)) {
+          return;
+        }
         break;
       case 'Missing location':
-        pushTo(stats, 'sourceErrors.missingLocation', id);
+        if (!pushTo(stats, 'sourceErrors.missingLocation', id)) {
+          return;
+        }
         break;
       default:
         break;
-
-      return;
     }
+
+    _.set(stats, key, _.get(stats, key, 0) + 1);
+
+    return;
   }
 
   if (findCauseByType(errorOrIncrement, OaError)) {
