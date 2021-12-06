@@ -1,7 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
-const VError = require('verror');
+const VError = require('@openagenda/verror');
 const SourceError = require('./errors/SourceError');
 const OaError = require('./errors/OaError');
 
@@ -52,7 +52,7 @@ module.exports = function upStats(stats, key, errorOrIncrement = 1) {
     const info = VError.info(errorOrIncrement);
     const id = info.correspondenceId || info.eventId;
 
-    switch (sourceError.message) {
+    switch (sourceError.shortMessage || sourceError.message) {
       case 'Missing timings':
         if (!pushTo(stats, 'sourceErrors.missingTimings', id)) {
           return;
@@ -60,6 +60,11 @@ module.exports = function upStats(stats, key, errorOrIncrement = 1) {
         break;
       case 'Missing location':
         if (!pushTo(stats, 'sourceErrors.missingLocation', id)) {
+          return;
+        }
+        break;
+      case 'Invalid data':
+        if (!pushTo(stats, 'sourceErrors.validationError', id)) {
           return;
         }
         break;

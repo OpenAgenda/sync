@@ -140,6 +140,28 @@ module.exports = {
         updatedEvents: 185,
         oaRequestErrors: 3
       }
+    },
+    {
+      agenda: {
+        uid: 12345678,
+        title: 'Des erreurs de validation',
+        description: 'Une description.',
+        slug: 'validation-issues',
+        url: null,
+        official: 0,
+        image: null
+      },
+      stats: {
+        savedEvents: 24,
+        startSyncDate: '2021-12-02T10:53:12.313Z',
+        startSyncDateStr: 'jeudi 2 décembre 2021 à 11:53',
+        invalidImages: 2,
+        upToDateEvents: 23,
+        sourceErrors: {
+          validationError: ['33987.Quai-des-arts-Centre-darts-visuels-Espace-dexposition']
+        },
+        eventUpdateErrors: 1
+      }
     }
   ]
 };

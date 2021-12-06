@@ -7,8 +7,9 @@ const path = require('path');
 const _ = require('lodash');
 const Nedb = require('nedb');
 const moment = require('moment');
-const VError = require('verror');
 const mkdirp = require('mkdirp');
+const stringify = require('json-stringify-safe');
+const VError = require('@openagenda/verror');
 const OaSdk = require('@openagenda/sdk-js');
 const { hooks, withParams } = require('@feathersjs/hooks');
 const promisifyStore = require('./utils/promisifyStore');
@@ -26,19 +27,6 @@ const potentialOaError = require('./potentialOaError');
 const filterTimings = require('./hooks/filterTimings');
 const throwMissingTimings = require('./hooks/throwMissingTimings');
 const transformFlatTimings = require('./hooks/transformFlatTimings');
-
-function getCircularReplacer() {
-  const seen = new WeakSet();
-  return (key, value) => {
-    if (typeof value === 'object' && value !== null) {
-      if (seen.has(value)) {
-        return;
-      }
-      seen.add(value);
-    }
-    return value;
-  };
-}
 
 // Defauts
 const defaultGetLocation = (locationId, eventLocation) => eventLocation;
@@ -211,7 +199,7 @@ async function synchronize(options) {
 
     writeFileSync(
       path.join(directory, 'errors', filename),
-      JSON.stringify(error, getCircularReplacer(), 2)
+      stringify(error, null, 2)
     );
   }
 

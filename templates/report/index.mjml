@@ -200,6 +200,10 @@ function formatNumber(x) {
                       ? `<li class="error">Événements de la source sans lieu: <b>${formatNumber(stats.sourceErrors.missingLocation.length)}</b><br />${stats.sourceErrors.missingLocation.join(
                         ', ')}</li>`
                       : '' %>
+                    <%- stats.sourceErrors && stats.sourceErrors.validationError && stats.sourceErrors.validationError.length
+                      ? `<li class="error">Événements invalides: <b>${formatNumber(stats.sourceErrors.validationError.length)}</b><br />${stats.sourceErrors.validationError.join(
+                        ', ')}</li>`
+                      : '' %>
                     <%- stats.locationErrors
                       ? `<li class="error">Erreurs lors de la récupération du lieu: <b>${formatNumber(stats.locationErrors)}</b></li>`
                       : '' %>

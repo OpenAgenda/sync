@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const upStats = require('./upStats');
 const OaError = require('./errors/OaError');
+const SourceError = require('./errors/SourceError');
 
 module.exports = async function updateEvent(
   oaEventUid,
@@ -15,19 +16,22 @@ module.exports = async function updateEvent(
     stats
   }
 ) {
-  let updatedEvent;
+  return oa.events.update(agendaUid, oaEventUid, mappedEvent)
+    .catch(e => {
+      if (noBailOnInvalidImage && _.get(e, 'response.body.errors[0].step') === 'image') {
+        upStats(stats, 'invalidImages');
+        mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
+        return oa.events.update(agendaUid, oaEventUid, mappedEvent);
+      }
 
-  try {
-    ({ event: updatedEvent } = await oa.events.update(agendaUid, oaEventUid, mappedEvent));
-  } catch (e) {
-    if (noBailOnInvalidImage && _.get(e, 'response.body.errors[0].step') === 'image') {
-      upStats(stats, 'invalidImages');
-      mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
-      ({ event: updatedEvent } = await oa.events.update(agendaUid, oaEventUid, mappedEvent));
-    } else {
+      throw e;
+    })
+    .catch(e => {
+      if (e.status === 400 && e.response?.body?.message === 'data is invalid') {
+        throw new SourceError(e, 'Invalid data');
+      }
+
       throw new OaError(e);
-    }
-  }
-
-  return updatedEvent;
+    })
+    .then(result => result.event);
 };

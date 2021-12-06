@@ -3,6 +3,7 @@
 const _ = require('lodash');
 const upStats = require('./upStats');
 const OaError = require('./errors/OaError');
+const SourceError = require('./errors/SourceError');
 
 module.exports = async function createEvent(
   mappedEvent,
@@ -14,32 +15,33 @@ module.exports = async function createEvent(
     stats
   }
 ) {
-  let createdEvent;
-
-  try {
-    try {
-      ({ event: createdEvent } = await oa.events.create(agendaUid, mappedEvent));
-    } catch (e) {
+  return oa.events.create(agendaUid, mappedEvent)
+    .catch(e => {
       // Retry if it's a duplicate slug error
       if (_.isMatch(_.get(e, 'response.body.errors[0]', null), {
         field: 'slug',
         code: 'duplicate'
       })) {
-        mappedEvent.slug += '_' + _.random(Math.pow(10, 6));
-        ({ event: createdEvent } = await oa.events.create(agendaUid, mappedEvent));
-      } else {
-        throw e;
+        return oa.events.create(agendaUid, mappedEvent);
       }
-    }
-  } catch (e2) {
-    if (noBailOnInvalidImage && _.get(e2, 'response.body.errors[0].step') === 'image') {
-      upStats(stats, 'invalidImages');
-      mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
-      ({ event: createdEvent } = await oa.events.create(agendaUid, mappedEvent));
-    } else {
-      throw new OaError(e2);
-    }
-  }
 
-  return createdEvent;
+      throw e;
+    })
+    .catch(e => {
+      if (noBailOnInvalidImage && _.get(e, 'response.body.errors[0].step') === 'image') {
+        upStats(stats, 'invalidImages');
+        mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
+        return oa.events.create(agendaUid, mappedEvent);
+      }
+
+      throw e;
+    })
+    .catch(e => {
+      if (e.status === 400 && e.response?.body?.message === 'data is invalid') {
+        throw new SourceError({ cause: e, info: { errors: e.response.body.errors } }, 'Invalid data');
+      }
+
+      throw new OaError(e);
+    })
+    .then(result => result.event);
 };
