@@ -18,7 +18,11 @@ module.exports = async function updateEvent(
 ) {
   return oa.events.update(agendaUid, oaEventUid, mappedEvent)
     .catch(e => {
-      if (noBailOnInvalidImage && _.get(e, 'response.body.errors[0].step') === 'image') {
+      if (
+        noBailOnInvalidImage
+        && e?.response?.data?.errors?.length === 1
+        && e.response.data.errors[0].field === 'image'
+      ) {
         upStats(stats, 'invalidImages');
         mappedEvent.image = defaultImageUrl ? { url: defaultImageUrl } : null;
         return oa.events.update(agendaUid, oaEventUid, mappedEvent);
@@ -27,11 +31,10 @@ module.exports = async function updateEvent(
       throw e;
     })
     .catch(e => {
-      if (e.status === 400 && e.response?.body?.message === 'data is invalid') {
+      if (e.status === 400 && e?.response?.data?.message === 'data is invalid') {
         throw new SourceError(e, 'Invalid data');
       }
 
       throw new OaError(e);
-    })
-    .then(result => result.event);
+    });
 };

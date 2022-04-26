@@ -27,6 +27,7 @@ const potentialOaError = require('./potentialOaError');
 const filterTimings = require('./hooks/filterTimings');
 const throwMissingTimings = require('./hooks/throwMissingTimings');
 const transformFlatTimings = require('./hooks/transformFlatTimings');
+const addDefaultCountryCode = require('./hooks/addDefaultCountryCode');
 
 // Defauts
 const defaultGetLocation = (locationId, eventLocation) => eventLocation;
@@ -160,7 +161,8 @@ async function synchronize(options) {
     publicKey,
     secretKey,
     simulate,
-    flatTimingDuration
+    flatTimingDuration,
+    defaultCountryCode = 'FR'
   } = options;
   const agendaUid = options.agendaUid || options.agenda.uid;
 
@@ -193,6 +195,12 @@ async function synchronize(options) {
       transformFlatTimings(flatTimingDuration)
     ]
   });
+  const getLocation = hooks(methods.location.get, {
+    context: withParams('locationId', 'eventLocation'),
+    middleware: [
+      addDefaultCountryCode(defaultCountryCode)
+    ]
+  })
 
   function catchError(error, filename) {
     log('error', error);
@@ -209,9 +217,8 @@ async function synchronize(options) {
   stats.startSyncDateStr = moment(startSyncDate).locale('fr').format('dddd D MMMM YYYY à HH:mm');
 
   const oa = new OaSdk({ secretKey });
-  await oa.connect();
 
-  const oaLocations = await listOaLocations(agendaUid, log);
+  const oaLocations = await listOaLocations(oa, agendaUid, log);
   const formSchema = await getFormSchema({ agendaUid, publicKey });
 
   const changes = {
@@ -283,7 +290,7 @@ async function synchronize(options) {
           if (!foundLocation) {
             if (!foundOaLocation) {
               const mappedLocation = await methods.location.map(
-                await methods.location.get(locationId, eventLocation),
+                await getLocation(locationId, eventLocation),
                 eventLocation
               );
               location = mappedLocation;
@@ -585,9 +592,9 @@ async function synchronize(options) {
                 await potentialOaError(oa.events.delete(agendaUid, syncEvent.data.uid)
                   .catch(e => {
                     if ( // already removed on OA
-                      !_.isMatch(e && e.response && e.response, {
+                      !_.isMatch(e?.response, {
                         status: 404,
-                        body: {
+                        data: {
                           error: 'event not found'
                         }
                       })
@@ -660,7 +667,7 @@ async function synchronize(options) {
 
           upStats(stats, 'updatedEvents');
         } catch (e) {
-          if (_.get(e, 'response.body.error') === 'event not found') {
+          if (_.get(e, 'response.data.error') === 'event not found') {
             try {
               if (!simulate) {
                 // Remove event from nedb and recreate
@@ -786,9 +793,9 @@ async function synchronize(options) {
           await potentialOaError(oa.events.delete(agendaUid, syncEvent.data.uid)
             .catch(e => {
               if ( // already removed on OA
-                !_.isMatch(e && e.response && e.response, {
+                !_.isMatch(e?.response, {
                   status: 404,
-                  body: {
+                  data: {
                     error: 'event not found'
                   }
                 })
@@ -847,9 +854,9 @@ async function synchronize(options) {
         await potentialOaError(oa.events.delete(agendaUid, eventToRemove.data.uid)
           .catch(e => {
             if ( // already removed on OA
-              !_.isMatch(e && e.response && e.response, {
+              !_.isMatch(e?.response, {
                 status: 404,
-                body: {
+                data: {
                   error: 'event not found'
                 }
               })
