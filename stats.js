@@ -2,7 +2,7 @@
 
 const path = require('path');
 const redis = require('redis');
-const Mails = require('@openagenda/mails');
+const { Mails } = require('@openagenda/mails');
 const promisifyRedis = require('./utils/promisifyRedis');
 
 function getClient(config) {
