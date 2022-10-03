@@ -122,7 +122,7 @@ function formatNumber(x) {
                   <% } else { %>
                     <br />
                     Vérification des totaux: <%- (stats.savedEvents || 0)
-                    + ((stats.splitedSourceLocations || 0) - (stats.splitSourceLocations || 0))
+                    + ((stats.splittedSourceLocations || 0) - (stats.splitSourceLocations || 0))
                     - ((stats.mergedSourceEvents || 0) - (stats.mergedEvents || 0))
                     - (stats.eventsWithoutLocation || 0)
                     - (stats.ignoredEvents || 0)
@@ -166,13 +166,13 @@ function formatNumber(x) {
                       ? `<li>Événements sans lieu: <b>${formatNumber(stats.eventsWithoutLocation)}</b></li>`
                       : '' %>
                     <%- stats.splitSourceLocations
-                      ? `<li>Événements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${formatNumber(stats.splitSourceLocations)}</b> -> <b>${formatNumber(stats.splitedSourceLocations)}</b></li>`
+                      ? `<li>Événements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${formatNumber(stats.splitSourceLocations)}</b> -> <b>${formatNumber(stats.splittedSourceLocations)}</b></li>`
                       : '' %>
                     <%- stats.mergedSourceEvents
                       ? `<li>Événements de la source fusionnés: <b>${formatNumber(stats.mergedSourceEvents)}</b> -> <b>${formatNumber(stats.mergedEvents)}</b></li>`
                       : '' %>
                     <%- stats.splitSourceEvents
-                      ? `<li>Événements de la source distribués sur plusieurs événements (horaires): <b>${formatNumber(stats.splitSourceEvents)}</b> -> <b>${formatNumber(stats.splitedSourceEvents)}</b></li>`
+                      ? `<li>Événements de la source distribués sur plusieurs événements (horaires): <b>${formatNumber(stats.splitSourceEvents)}</b> -> <b>${formatNumber(stats.splittedSourceEvents)}</b></li>`
                       : '' %>
                     <%- stats.ignoredEvents
                       ? `<li>Événements ignorés: <b>${formatNumber(stats.ignoredEvents)}</b>`

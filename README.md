@@ -128,7 +128,7 @@ const axios = require('axios');
 
 const base = 'https://www.mairie-truc.fr/wp-json/wp/v2';
 
-module.exports = async (query, offset = 0/*, limit = 10*/) => {
+module.exports = async (offset = 0/*, limit = 10*/) => {
   const page = (offset / 10) + 1;
   let data;
 
@@ -142,7 +142,7 @@ module.exports = async (query, offset = 0/*, limit = 10*/) => {
 };
 ```
 
-La fonction reçoit les arguments `query`, `offset` et `limit` et doit retourner un tableau d'événements.
+La fonction reçoit les arguments `offset` et `limit` et doit retourner un tableau d'événements.
 
 ### event.map (event.js)
 

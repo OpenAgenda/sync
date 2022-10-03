@@ -1,6 +1,6 @@
 'use strict';
 
-const OaError = require('./errors/OaError');
+const OaError = require('../errors/OaError');
 
 module.exports = async function potentialOaError(expr) {
   try {

@@ -17,10 +17,10 @@
   dependencies:
     regenerator-runtime "^0.13.4"
 
-"@feathersjs/hooks@^0.4.0-alpha.0":
-  version "0.4.0-alpha.0"
-  resolved "https://registry.yarnpkg.com/@feathersjs/hooks/-/hooks-0.4.0-alpha.0.tgz#b05b1a31f415f09bc8bb672a9667a79b481977ef"
-  integrity sha512-ZWK4j+Vvpxru8oSIXJgLswm9K8V97WlUqXR+OulJs7/B0amuMph0TuWnsFADNy29Nr+E4Mb/avr8Uuln26RFBQ==
+"@feathersjs/hooks@^0.7.5":
+  version "0.7.5"
+  resolved "https://registry.yarnpkg.com/@feathersjs/hooks/-/hooks-0.7.5.tgz#89907b480462b2fe524094db34cf0c2dab34ad3b"
+  integrity sha512-xHbWPCJ5upr9eDdRSuJgWSKgCLN07YLvVjS7PdDqWrEz/iz5YBqoIQOzHhNPsWXOA6T7v+ArifrTUitG+ZzIRA==
 
 "@openagenda/logs@^1.1.2":
   version "1.1.2"

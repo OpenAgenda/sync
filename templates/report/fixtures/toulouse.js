@@ -36,7 +36,7 @@ module.exports = {
         startSyncDateStr: 'jeudi 13 février 2020 à 16:00',
         savedEvents: 48,
         splitSourceLocations: 4,
-        splitedSourceLocations: 8,
+        splittedSourceLocations: 8,
         eventsWithoutLocation: 4,
         mergedSourceEvents: 20,
         mergedEvents: 2,
@@ -63,9 +63,9 @@ module.exports = {
     {
       agenda: {
         uid: 12345678,
-        title: 'Splited truc',
-        description: 'Splited truc',
-        slug: 'splited-truc-test',
+        title: 'Splitted truc',
+        description: 'Splitted truc',
+        slug: 'splitted-truc-test',
         url: null,
         official: 0,
         image: null
@@ -74,7 +74,7 @@ module.exports = {
         savedEvents: 45,
         startSyncDateStr: 'jeudi 13 février 2020 à 18:00',
         splitSourceEvents: 4,
-        splitedSourceEvents: 10,
+        splittedSourceEvents: 10,
         locationErrors: 12
       }
     },
