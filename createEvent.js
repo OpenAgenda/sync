@@ -5,13 +5,11 @@ const VError = require('@openagenda/verror');
 const upStats = require('./lib/upStats');
 const createOaEvent = require('./lib/createOaEvent');
 
-module.exports = async function createEvent(params, {
+module.exports = async function createEvent(context, {
   agendaUid,
   formSchema,
   list,
   index,
-  catchError,
-  startSyncDate,
 }) {
   const {
     methods,
@@ -22,14 +20,17 @@ module.exports = async function createEvent(params, {
     simulate,
     log,
     stats,
-  } = params;
+    catchError,
+  } = context;
+  const { startSyncDate } = stats;
 
+  const agendaStats = stats.agendas[agendaUid];
   const itemToCreate = list[index];
   const chunkedTimings = _.chunk(itemToCreate.data.timings, 800);
 
   if (chunkedTimings.length > 1) {
-    upStats(stats, 'splitSourceEvents');
-    upStats(stats, 'splittedSourceEvents', chunkedTimings.length);
+    upStats(agendaStats, 'splitSourceEvents');
+    upStats(agendaStats, 'splittedSourceEvents', chunkedTimings.length);
   }
 
   for (let i = 0; i < chunkedTimings.length; i++) {
@@ -37,11 +38,11 @@ module.exports = async function createEvent(params, {
     let event = { ...itemToCreate.data, timings };
 
     try {
-      event = await methods.event.postMap(event, formSchema);
+      const postMapContext = methods.event.postMap.createContext({ ...context, agendaUid });
+      ({ result: event } = await methods.event.postMap(event, formSchema, postMapContext));
 
       if (!event) {
-        upStats(stats, 'ignoredEvents');
-
+        upStats(agendaStats, 'ignoredEvents');
         continue;
       }
 
@@ -49,6 +50,7 @@ module.exports = async function createEvent(params, {
         'info',
         `CREATE EVENT ${index + 1}/${list.length}`,
         {
+          agendaUid,
           eventId: itemToCreate.eventId,
           locationId: itemToCreate.locationId
         }
@@ -67,26 +69,25 @@ module.exports = async function createEvent(params, {
         );
 
         await syncDb.events.insert({
-          agendaUid: agendaUid,
+          agendaUid,
           correspondenceId: itemToCreate.correspondenceId,
           syncedAt: new Date(),
           data: createdEvent
         });
       }
 
-      upStats(stats, 'createdEvents');
+      upStats(agendaStats, 'createdEvents');
     } catch (e) {
       const error = new VError({
         cause: e,
-        message: 'Error on event create',
         info: {
           correspondenceId: itemToCreate.correspondenceId,
           event,
           itemToCreate
         }
-      });
+      }, 'Error on event create');
 
-      upStats(stats, 'eventCreateErrors', error);
+      upStats(agendaStats, 'eventCreateErrors', error);
       catchError(error, `${startSyncDate.toISOString()}:${itemToCreate.correspondenceId}:${i}.json`);
     }
   }

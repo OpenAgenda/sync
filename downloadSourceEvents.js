@@ -4,8 +4,8 @@ const { writeFileSync } = require('fs');
 const path = require('path');
 const upStats = require('./lib/upStats');
 
-module.exports = async function downloadSourceEvents(params) {
-  const { methods, directory, log, stats } = params;
+module.exports = async function downloadSourceEvents(context) {
+  const { methods, directory, log, stats } = context;
 
   const limit = 20;
   let events;

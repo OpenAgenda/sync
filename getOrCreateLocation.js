@@ -3,21 +3,23 @@
 const potentialOaError = require('./utils/potentialOaError');
 const upStats = require('./lib/upStats');
 
-module.exports = async function getOrCreateLocation(params, {
+module.exports = async function getOrCreateLocation(context, {
+  agendaUid,
   event,
   eventId,
   oaLocations,
   eventLocation,
 }) {
   const {
-    agendaUid,
     methods,
     syncDb,
     oa,
     simulate,
     stats,
     log,
-  } = params;
+  } = context;
+
+  const agendaStats = stats.agendas[agendaUid];
 
   let location;
 
@@ -36,10 +38,10 @@ module.exports = async function getOrCreateLocation(params, {
 
   if (!foundLocation) {
     if (!foundOaLocation) {
-      const mappedLocation = await methods.location.map(
-        await methods.location.get(locationId, eventLocation),
-        eventLocation
-      );
+      const getContext = methods.event.map.createContext(context);
+      const { result: sLocation } = await methods.location.get(locationId, eventLocation, getContext);
+
+      const mappedLocation = await methods.location.map(sLocation, eventLocation);
       location = mappedLocation;
 
       if (!simulate) {
@@ -55,9 +57,9 @@ module.exports = async function getOrCreateLocation(params, {
       log(
         'info',
         'LOCATION NOT FOUND => created',
-        { eventId, locationId, location }
+        { agendaUid, eventId, locationId, location }
       );
-      upStats(stats, 'createdLocations');
+      upStats(agendaStats, 'createdLocations');
     } else {
       await syncDb.locations.insert({
         correspondenceId: locationId,

@@ -4,20 +4,25 @@ const _ = require('lodash');
 const moment = require('moment');
 const VError = require('@openagenda/verror');
 const upStats = require('./lib/upStats');
-const getFormSchema = require('./lib/getFormSchema');
+const getAgenda = require('./lib/getAgenda');
 const listOaLocations = require('./lib/listOaLocations');
 const SourceError = require('./errors/SourceError');
 const getOrCreateLocation = require('./getOrCreateLocation');
+const { readFileSync } = require('fs');
+const path = require('path');
 
-function addEvent(params, list, {
+function addEvent(context, list, {
+  agendaUid,
   correspondenceId,
   data,
   eventId,
   locationId,
   event
 }) {
-  const { stats } = params;
+  const { stats } = context;
   const item = list.find(v => v.correspondenceId === correspondenceId);
+
+  const agendaStats = stats.agendas[agendaUid];
 
   if (item) {
     // merge timings and update the event(s)
@@ -35,11 +40,11 @@ function addEvent(params, list, {
       )
     };
 
-    if (!stats.mergedSourceEvents) {
-      stats.mergedSourceEvents = {};
+    if (!agendaStats.mergedSourceEvents) {
+      agendaStats.mergedSourceEvents = {};
     }
 
-    stats.mergedSourceEvents[correspondenceId] = (stats.mergedSourceEvents[correspondenceId] || 1) + 1;
+    agendaStats.mergedSourceEvents[correspondenceId] = (agendaStats.mergedSourceEvents[correspondenceId] || 1) + 1;
   } else {
     list.push({
       correspondenceId,
@@ -51,51 +56,114 @@ function addEvent(params, list, {
   }
 }
 
-module.exports = async function dispatchEvent(params, {
-  agendaMap,
-  event,
-  catchError,
-  startSyncDate,
-}) {
-  const { methods, publicKey, oa, syncDb, log, stats } = params;
+module.exports = async function dispatchEvent(context, filename) {
+  const {
+    methods,
+    getAgendaUid,
+    directory,
+    publicKey,
+    oa,
+    syncDb,
+    log,
+    stats,
+    agendaMap,
+    catchError,
+  } = context;
+  const { startSyncDate } = stats;
 
-  const agendaUid = await methods.event.getAgendaUid(event);
+  const event = JSON.parse(readFileSync(path.join(directory, 'data', filename), 'utf8'));
 
-  if (!agendaUid) {
-    // TODO error
-    console.log('This event don\'t have agenda for dispatch', event);
+  let agendaUid;
+
+  try {
+    agendaUid = await getAgendaUid(event);
+
+    if (!agendaUid) {
+      throw new VError('This event don\'t have agenda for dispatch');
+    }
+
+    if (!agendaMap[agendaUid]) {
+      agendaMap[agendaUid] = {
+        agenda: await getAgenda(agendaUid, publicKey)
+          .catch(err => {
+            throw new VError(err, `Can\'t get agenda ${agendaUid}`);
+          }),
+        oaLocations: await listOaLocations(oa, agendaUid, log)
+          .catch(err => {
+            throw new VError(err, `Can\'t list locations of the agenda ${agendaUid}`);
+          }),
+        changes: {
+          create: [],
+          update: [],
+        },
+      };
+    }
+  } catch (e) {
+    const error = new VError({
+      name: 'AgendaInfoError',
+      cause: e,
+      info: {
+        event
+      }
+    }, 'Event can\'t be dispatched');
+
+    upStats(stats, 'agendaErrors');
+    catchError(error, `${startSyncDate.toISOString()}:${filename}`);
+
     return;
   }
 
-  if (!agendaMap[agendaUid]) {
-    agendaMap[agendaUid].formSchema = await getFormSchema(agendaUid, publicKey);
-    agendaMap[agendaUid].oaLocations = await listOaLocations(oa, agendaUid, log);
-    agendaMap[agendaUid].changes = {
-      create: [],
-      update: [],
-    };
+  const { agenda, oaLocations, changes } = agendaMap[agendaUid];
+  const formSchema = agenda.schema.fields;
+
+  if (!stats.agendas[agendaUid]) {
+    stats.agendas[agendaUid] = {};
   }
+  const agendaStats = stats.agendas[agendaUid];
 
-  const { formSchema, oaLocations, changes } = agendaMap[agendaUid];
+  upStats(agendaStats, 'savedEvents');
 
-  const eventId = methods.event.getId(event);
-  const mappedEvent = await methods.event.map(event, formSchema, oaLocations);
+  let eventId;
+  let mappedEvent;
+  let eventLocations;
 
-  if (!mappedEvent) {
-    upStats(stats, 'ignoredEvents');
+  try {
+    eventId = methods.event.getId(event);
+    const mapContext = methods.event.map.createContext(context);
+    ({ result: mappedEvent } = await methods.event.map(event, formSchema, oaLocations, mapContext));
+
+    if (!mappedEvent) {
+      upStats(agendaStats, 'ignoredEvents');
+      return;
+    }
+
+    eventLocations = mappedEvent.locations;
+    delete mappedEvent.locations;
+
+    if (eventLocations.length === 0) {
+      throw new SourceError('Missing location');
+    }
+  } catch (e) {
+    const error = new VError({
+      cause: e,
+      info: {
+        agendaUid,
+        eventId,
+        event
+      },
+    }, 'Error in event map');
+
+    // if (!(error instanceof SourceError)) {
+    upStats(agendaStats, 'eventMapErrors', error);
+    // }
+    catchError(error, `${startSyncDate.toISOString()}:${filename}`);
+
     return;
-  }
-
-  const eventLocations = mappedEvent.locations;
-  delete mappedEvent.locations;
-
-  if (eventLocations.length === 0) {
-    throw new SourceError('Missing location');
   }
 
   if (eventLocations.length > 1) {
-    upStats(stats, 'splitSourceLocations');
-    upStats(stats, 'splittedSourceLocations', eventLocations.length);
+    upStats(agendaStats, 'splitSourceLocations');
+    upStats(agendaStats, 'splittedSourceLocations', eventLocations.length);
   }
 
   for (const eventLocation of eventLocations) {
@@ -106,7 +174,8 @@ module.exports = async function dispatchEvent(params, {
       ({
         location,
         locationId
-      } = await getOrCreateLocation(params, {
+      } = await getOrCreateLocation(context, {
+        agendaUid,
         event,
         eventId,
         oaLocations,
@@ -115,15 +184,14 @@ module.exports = async function dispatchEvent(params, {
     } catch (e) {
       const error = new VError({
         cause: e,
-        message: 'Error in location phase',
         info: {
           eventId,
           eventLocation,
           mappedEvent
         }
-      });
+      }, 'Error in location phase');
 
-      upStats(stats, 'locationErrors', error);
+      upStats(agendaStats, 'locationErrors', error);
       catchError(error, `${startSyncDate.toISOString()}:${eventId}.${locationId}.json`);
 
       continue;
@@ -139,7 +207,8 @@ module.exports = async function dispatchEvent(params, {
     const syncEvent = await syncDb.events.findOne({ query: { agendaUid, correspondenceId } });
 
     if (syncEvent) {
-      addEvent(params, changes.update, {
+      addEvent(context, changes.update, {
+        agendaUid,
         correspondenceId,
         data,
         eventId,
@@ -147,7 +216,8 @@ module.exports = async function dispatchEvent(params, {
         event
       });
     } else {
-      addEvent(params, changes.create, {
+      addEvent(context, changes.create, {
+        agendaUid,
         correspondenceId,
         data,
         eventId,

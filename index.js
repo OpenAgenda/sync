@@ -1,12 +1,9 @@
 'use strict';
 
-const { readdirSync } = require('fs');
-const { inspect } = require('util');
+const fs = require('fs/promises');
 const path = require('path');
 const _ = require('lodash');
-const moment = require('moment');
 const mkdirp = require('mkdirp');
-const downloadSourceEvents = require('./downloadSourceEvents');
 const synchronize = require('./synchronize');
 const statsUtil = require('./lib/stats');
 
@@ -45,23 +42,46 @@ const defaultPostMapEvent = event => event;
 * }
 * */
 
-async function statsWork(params) {
-  const { stats } = params;
+function transformStats(params, stats, agendaMap) {
+  const { reportSectionTitle } = params;
 
-  const mergedEventsList = stats.mergedSourceEvents ? Object.values(stats.mergedSourceEvents) : [];
+  const mailData = {
+    sectionTitle: reportSectionTitle,
+    savedEvents: stats.savedEvents,
+    startSyncDate: stats.startSyncDate,
+    startSyncDateStr: stats.startSyncDateStr,
+    agendaErrors: stats.agendaErrors,
+    stats: [],
+  };
 
-  // TODO works without
-  /* if (!mergedEventsList.length) {
-    return;
-  } */
+  for (const agendaUid in stats.agendas) {
+    const agendaStats = stats.agendas[agendaUid];
 
-  stats.mergedSourceEvents = _.sum(mergedEventsList);
-  stats.mergedEvents = mergedEventsList.length;
+    const mergedEventsList = agendaStats.mergedSourceEvents ? Object.values(agendaStats.mergedSourceEvents) : [];
 
-  await statsUtil.push(params);
-  await statsUtil.sendReport(params);
+    agendaStats.mergedSourceEvents = _.sum(mergedEventsList);
+    agendaStats.mergedEvents = mergedEventsList.length;
 
-  return stats;
+    const { agenda } = agendaMap[agendaUid];
+
+    mailData.stats.push({
+      ...agendaStats,
+      agenda: {
+        uid: agenda.uid,
+        title: agenda.title,
+        slug: agenda.slug,
+      }
+    });
+  }
+
+  return mailData;
+}
+
+async function sendReport(params, stats) {
+  // add to redis if needed
+  await statsUtil.push(params, stats);
+  // send if needed
+  await statsUtil.sendReport(params, stats);
 }
 
 module.exports = async function syncTask(options) {
@@ -74,57 +94,26 @@ module.exports = async function syncTask(options) {
       location: {
         get: defaultGetLocation
       },
-    },
-    stats: {}
+    }
   }, options);
 
-  const {
-    directory,
-    log,
-    downloadOnly,
-    simulate,
-    stats,
-  } = params;
+  const { directory, log } = params;
+
+  await fs.rm(path.join(directory, 'data'), { recursive: true });
 
   await mkdirp(path.join(directory, 'data'));
   await mkdirp(path.join(directory, 'errors'));
   await mkdirp(path.join(directory, 'db'));
 
   try {
-    if (simulate) {
-      await synchronize(params);
-      return stats;
-    }
+    const { stats, agendaMap } = await synchronize(params);
+    const completeStats = transformStats(params, stats, agendaMap);
 
-    // Before all we finish the last synchronisation
-    if (!downloadOnly && readdirSync(path.join(directory, 'data')).length) {
-      await synchronize({ ...params, skipDeletion: true });
-    }
+    await sendReport(params, completeStats);
 
-    log('info', 'Start saving');
-
-    try {
-      await downloadSourceEvents(params);
-    } catch (e) {
-      if (e && (!e.response || e.response.status !== 416)) { // OutOfRange
-        log('error', `Cannot list events: ${inspect(e)}`);
-
-        stats.startSyncDateStr = moment().locale('fr').format('dddd D MMMM YYYY à HH:mm');
-        stats.eventListError = { message: e.message, status: e.response && e.response.status };
-
-        return statsWork(params);
-      }
-    }
-
-    if (downloadOnly) {
-      return stats;
-    }
-
-    await synchronize(params);
+    return completeStats;
   } catch (e) {
     // script error
     log('error', e.response || e);
   }
-
-  return statsWork(params);
 };

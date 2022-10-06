@@ -7,14 +7,14 @@ module.exports = function catchInvalidImage() {
   return async (context, next) => {
     await next();
 
-    const { result, params } = context;
-    const { noBailOnInvalidImage, defaultImageUrl, stats } = params;
+    const { agendaUid, result, noBailOnInvalidImage, defaultImageUrl, stats } = context;
 
     if (
       noBailOnInvalidImage
       && result.image && !(await isURL200(result.image.url))
     ) {
-      upStats(stats, 'invalidImages');
+      const agendaStats = stats.agendas[agendaUid];
+      upStats(agendaStats, 'invalidImages');
       result.image = defaultImageUrl ? { url: defaultImageUrl } : null;
     }
   };

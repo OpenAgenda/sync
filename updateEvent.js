@@ -11,14 +11,11 @@ const upStats = require('./lib/upStats');
 const castTimings = require('./utils/castTimings');
 const potentialOaError = require('./utils/potentialOaError');
 
-module.exports = async function updateEvent(params, {
+module.exports = async function updateEvent(context, {
   agendaUid,
   formSchema,
   list,
   index,
-  catchError,
-  startSyncDate,
-  ignoredDeletes,
 }) {
   const {
     methods,
@@ -30,14 +27,20 @@ module.exports = async function updateEvent(params, {
     simulate,
     log,
     stats,
-  } = params;
+    catchError,
+    ignoredDeletes,
+  } = context;
+  const { startSyncDate } = stats;
 
+  const agendaStats = stats.agendas[agendaUid];
   const itemToUpdate = list[index];
   const chunkedTimings = _.chunk(itemToUpdate.data.timings, 800);
-  const syncEvents = await syncDb.events.find({ query: {
-    agendaUid: agendaUid,
-    correspondenceId: itemToUpdate.correspondenceId
-  } });
+  const syncEvents = await syncDb.events.find({
+    query: {
+      agendaUid: agendaUid,
+      correspondenceId: itemToUpdate.correspondenceId
+    }
+  });
 
   const newestEventUpdatedDate = itemToUpdate.rawEvents.reduce((result, value) => {
     const eventUpdatedDate = methods.event.getUpdatedDate(value);
@@ -55,8 +58,8 @@ module.exports = async function updateEvent(params, {
   const needUpdate = forceUpdateOption || moment(newestEventUpdatedDate).isAfter(olderSyncedAt);
 
   if (chunkedTimings.length > 1) {
-    upStats(stats, 'splitSourceEvents');
-    upStats(stats, 'splittedSourceEvents', chunkedTimings.length);
+    upStats(agendaStats, 'splitSourceEvents');
+    upStats(agendaStats, 'splittedSourceEvents', chunkedTimings.length);
   }
 
   if (!needUpdate && sameTimings) {
@@ -64,6 +67,7 @@ module.exports = async function updateEvent(params, {
       'info',
       `UPDATE EVENT ${index + 1}/${list.length} (No need to update: continue)`,
       {
+        agendaUid,
         eventId: itemToUpdate.eventId,
         locationId: itemToUpdate.locationId
       }
@@ -77,7 +81,7 @@ module.exports = async function updateEvent(params, {
       );
     }
 
-    upStats(stats, 'upToDateEvents');
+    upStats(agendaStats, 'upToDateEvents');
 
     return;
   }
@@ -95,16 +99,16 @@ module.exports = async function updateEvent(params, {
       };
 
       try {
-        event = await methods.event.postMap(event, formSchema);
+        const postMapContext = methods.event.postMap.createContext({ ...context, agendaUid });
+        ({ result: event } = await methods.event.postMap(event, formSchema, postMapContext));
 
         if (!event) {
-          await removeFalsyEvent(params, {
-            list: list,
+          await removeFalsyEvent(context, {
+            agendaUid,
+            list,
             index,
             syncEvent,
             event,
-            catchError,
-            startSyncDate,
           });
 
           continue;
@@ -114,6 +118,7 @@ module.exports = async function updateEvent(params, {
           'info',
           `UPDATE EVENT ${index + 1}/${list.length}`,
           {
+            agendaUid,
             eventId: itemToUpdate.eventId,
             locationId: itemToUpdate.locationId
           }
@@ -150,30 +155,28 @@ module.exports = async function updateEvent(params, {
           }, {});
         }
 
-        upStats(stats, 'updatedEvents');
+        upStats(agendaStats, 'updatedEvents');
       } catch (e) {
         if (_.get(e, 'response.data.error') === 'event not found') {
-          await recreateEvent(params, {
+          await recreateEvent(context, {
+            agendaUid,
             itemToUpdate,
             syncEvent,
             event,
-            catchError,
-            startSyncDate,
           });
         } else {
           ignoredDeletes.push(syncEvent.data.uid);
 
           const error = new VError({
             cause: e,
-            message: 'Error on event update',
             info: {
               correspondenceId: itemToUpdate.correspondenceId,
               syncEvent,
               itemToUpdate
             }
-          });
+          }, 'Error on event update');
 
-          upStats(stats, 'eventUpdateErrors', error);
+          upStats(agendaStats, 'eventUpdateErrors', error);
           catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
         }
       }
@@ -185,11 +188,11 @@ module.exports = async function updateEvent(params, {
       };
 
       try {
-
-        event = await methods.event.postMap(event, formSchema);
+        const postMapContext = methods.event.postMap.createContext({ ...context, agendaUid });
+        ({ result: event } = await methods.event.postMap(event, formSchema, postMapContext));
 
         if (!event) {
-          upStats(stats, 'ignoredEvents');
+          upStats(agendaStats, 'ignoredEvents');
 
           continue;
         }
@@ -198,6 +201,7 @@ module.exports = async function updateEvent(params, {
           'info',
           `UPDATE EVENT ${index + 1}/${list.length} (one more for new timings)`,
           {
+            agendaUid,
             eventId: itemToUpdate.eventId,
             locationId: itemToUpdate.locationId
           }
@@ -223,19 +227,18 @@ module.exports = async function updateEvent(params, {
           });
         }
 
-        upStats(stats, 'createdEvents');
+        upStats(agendaStats, 'createdEvents');
       } catch (e) {
         const error = new VError({
           cause: e,
-          message: 'Error on event update (one more for new timings)',
           info: {
             correspondenceId: itemToUpdate.correspondenceId,
             syncEvent,
             itemToUpdate
           }
-        });
+        }, 'Error on event update (one more for new timings)');
 
-        upStats(stats, 'eventCreateTimingsErrors', error);
+        upStats(agendaStats, 'eventCreateTimingsErrors', error);
         catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
       }
     }
@@ -265,6 +268,7 @@ module.exports = async function updateEvent(params, {
         'info',
         'Event with timings that exceed deleted',
         {
+          agendaUid,
           eventId: itemToUpdate.eventId,
           locationId: itemToUpdate.locationId
         }
@@ -272,15 +276,14 @@ module.exports = async function updateEvent(params, {
     } catch (e) {
       const error = new VError({
         cause: e,
-        message: 'Error on event update (one less for removed timings)',
         info: {
           correspondenceId: itemToUpdate.correspondenceId,
           syncEvent,
           itemToUpdate
         }
-      });
+      }, 'Error on event update (one less for removed timings)');
 
-      upStats(stats, 'eventRemoveTimingsErrors', error);
+      upStats(agendaStats, 'eventRemoveTimingsErrors', error);
       catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
     }
   }

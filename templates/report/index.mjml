@@ -106,116 +106,129 @@ function formatNumber(x) {
             synchronisation</a>
         </mj-text>
 
-        <mj-accordion>
-          <% for (const { agenda, stats } of data) { %>
-            <mj-accordion-element>
-              <mj-accordion-title>
-                <b><a href="https://openagenda.com/<%= agenda.slug %>"><%= agenda.title %></a></b><br />
-                <small>
-                  Synchronisation du <%= stats.startSyncDateStr %>
+        <% for (const { sectionTitle, startSyncDateStr, savedEvents, agendaErrors, stats } of data) { %>
+          <mj-text padding="10px 15px 10px 15px">
+            <% if (sectionTitle) { %>
+              <h1><%= sectionTitle %></h1>
+              Événements présents dans la source: <b><%- formatNumber(savedEvents) %></b>
+            <% } %>
+            <%- sectionTitle && agendaErrors ? '<br />' : '' %>
+            <%- agendaErrors
+              ? `Erreurs de choix/récupération d'agenda: <b class="error">${agendaErrors}</b>`
+              : '' %>
+          </mj-text>
 
-                  <% if (stats.eventListError) { %>
-                    <br />
-                    <b class="error"><u>La source de données a présenté des erreurs lors de sa lecture, la
-                        synchronisation a été
-                        interrompue.</u></b>
-                  <% } else { %>
-                    <br />
-                    Vérification des totaux: <%- (stats.savedEvents || 0)
-                    + ((stats.splittedSourceLocations || 0) - (stats.splitSourceLocations || 0))
-                    - ((stats.mergedSourceEvents || 0) - (stats.mergedEvents || 0))
-                    - (stats.eventsWithoutLocation || 0)
-                    - (stats.ignoredEvents || 0)
-                    - ((stats.createdEvents || 0) + (stats.recreatedEvents || 0) + (stats.updatedEvents || 0) + (stats.upToDateEvents || 0)) === 0
-                      ? `<span class="success">ok</span>` : `<span class="error">incorrect</span>` %>
-                  <% } %>
+          <mj-accordion>
+            <% for (const { agenda, ...agendaStats } of stats) { %>
+              <mj-accordion-element>
+                <mj-accordion-title>
+                  <b><a href="https://openagenda.com/<%= agenda.slug %>"><%= agenda.title %></a></b><br />
+                  <small>
+                    Synchronisation du <%= startSyncDateStr %>
 
-                  <%
-                    const totalErrors = formatNumber(
-                      (stats.locationErrors || 0)
-                      + (stats.eventMapErrors || 0)
-                      + (stats.eventCreateErrors || 0)
-                      + (stats.eventFalsyRemoveErrors || 0)
-                      + (stats.eventRecreateErrors || 0)
-                      + (stats.eventUpdateErrors || 0)
-                      + (stats.eventCreateTimingsErrors || 0)
-                      + (stats.eventRemoveTimingsErrors || 0)
-                      + (stats.eventRemoveErrors || 0)
-                    );
-                  %>
+                    <% if (agendaStats.eventListError) { %>
+                      <br />
+                      <b class="error"><u>La source de données a présenté des erreurs lors de sa lecture, la
+                          synchronisation a été
+                          interrompue.</u></b>
+                    <% } else { %>
+                      <br />
+                      Vérification des totaux: <%- (agendaStats.savedEvents || 0)
+                      + ((agendaStats.splittedSourceLocations || 0) - (agendaStats.splitSourceLocations || 0))
+                      - ((agendaStats.mergedSourceEvents || 0) - (agendaStats.mergedEvents || 0))
+                      - (agendaStats.eventsWithoutLocation || 0)
+                      - (agendaStats.ignoredEvents || 0)
+                      - ((agendaStats.createdEvents || 0) + (agendaStats.recreatedEvents || 0) + (agendaStats.updatedEvents || 0) + (agendaStats.upToDateEvents || 0)) === 0
+                        ? `<span class="success">ok</span>` : `<span class="error">incorrect</span>` %>
+                    <% } %>
 
-                  <% if (totalErrors > 0) { %>
-                    <br />
-                    <span class="error">
-                      Avec un total de <b><%- formatNumber(totalErrors) %></b> erreur<%- totalErrors > 1 ? 's' : '' %>.
-                    </span>
-                  <% } %>
-                </small>
-              </mj-accordion-title>
-              <% if (stats.eventListError) { %>
-                <mj-accordion-text color="#e74c3c" padding="10px 25px 10px 25px">
-                  <%= JSON.stringify(stats.eventListError) %>
-                </mj-accordion-text>
-              <% } else { %>
-                <mj-accordion-text padding="10px 0 10px 0">
-                  <ul>
-                    <%- stats.savedEvents
-                      ? `<li>Événements présents dans la source: <b>${formatNumber(stats.savedEvents)}</b></li>`
-                      : '<li>Aucun événement présent dans la source.</li>' %>
-                    <%- stats.eventsWithoutLocation
-                      ? `<li>Événements sans lieu: <b>${formatNumber(stats.eventsWithoutLocation)}</b></li>`
-                      : '' %>
-                    <%- stats.splitSourceLocations
-                      ? `<li>Événements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${formatNumber(stats.splitSourceLocations)}</b> -> <b>${formatNumber(stats.splittedSourceLocations)}</b></li>`
-                      : '' %>
-                    <%- stats.mergedSourceEvents
-                      ? `<li>Événements de la source fusionnés: <b>${formatNumber(stats.mergedSourceEvents)}</b> -> <b>${formatNumber(stats.mergedEvents)}</b></li>`
-                      : '' %>
-                    <%- stats.splitSourceEvents
-                      ? `<li>Événements de la source distribués sur plusieurs événements (horaires): <b>${formatNumber(stats.splitSourceEvents)}</b> -> <b>${formatNumber(stats.splittedSourceEvents)}</b></li>`
-                      : '' %>
-                    <%- stats.ignoredEvents
-                      ? `<li>Événements ignorés: <b>${formatNumber(stats.ignoredEvents)}</b>`
-                      : `` %>
-                    <%- stats.upToDateEvents
-                      ? `<li>Événements déjà à jour: <b>${formatNumber(stats.upToDateEvents)}</b></li>`
-                      : '' %>
-                    <%- stats.createdEvents ? `<li>Événements créés: <b>${formatNumber(stats.createdEvents)}</b></li>` : '' %>
-                    <%- stats.recreatedEvents
-                      ? `<li>Événements re-créés: <b>${formatNumber(stats.recreatedEvents)}</b></li>`
-                      : '' %>
-                    <%- stats.updatedEvents
-                      ? `<li>Événements mis à jour: <b>${formatNumber(stats.updatedEvents)}</b></li>`
-                      : '' %>
-                    <%- stats.invalidImages
-                      ? `<li>Images invalides détectées: <b>${formatNumber(stats.invalidImages)}</b></li>`
-                      : '' %>
-                    <%- stats.createdLocations ? `<li>Lieux créés: <b>${formatNumber(stats.createdLocations)}</b></li>` : '' %>
+                    <%
+                      const totalErrors = formatNumber(
+                        (agendaStats.locationErrors || 0)
+                        + (agendaStats.eventMapErrors || 0)
+                        + (agendaStats.eventCreateErrors || 0)
+                        + (agendaStats.eventFalsyRemoveErrors || 0)
+                        + (agendaStats.eventRecreateErrors || 0)
+                        + (agendaStats.eventUpdateErrors || 0)
+                        + (agendaStats.eventCreateTimingsErrors || 0)
+                        + (agendaStats.eventRemoveTimingsErrors || 0)
+                        + (agendaStats.eventRemoveErrors || 0)
+                      );
+                    %>
 
-                    <%- stats.sourceErrors && stats.sourceErrors.missingTimings && stats.sourceErrors.missingTimings.length
-                      ? `<li class="error">Événements de la source sans horaire: <b>${formatNumber(stats.sourceErrors.missingTimings.length)}</b><br />${stats.sourceErrors.missingTimings.join(
-                        ', ')}</li>`
-                      : '' %>
-                    <%- stats.sourceErrors && stats.sourceErrors.missingLocation && stats.sourceErrors.missingLocation.length
-                      ? `<li class="error">Événements de la source sans lieu: <b>${formatNumber(stats.sourceErrors.missingLocation.length)}</b><br />${stats.sourceErrors.missingLocation.join(
-                        ', ')}</li>`
-                      : '' %>
-                    <%- stats.sourceErrors && stats.sourceErrors.validationError && stats.sourceErrors.validationError.length
-                      ? `<li class="error">Événements invalides: <b>${formatNumber(stats.sourceErrors.validationError.length)}</b><br />${stats.sourceErrors.validationError.join(
-                        ', ')}</li>`
-                      : '' %>
-                    <%- stats.locationErrors
-                      ? `<li class="error">Erreurs lors de la récupération du lieu: <b>${formatNumber(stats.locationErrors)}</b></li>`
-                      : '' %>
-                    <%- stats.oaRequestErrors
-                      ? `<li class="error">Erreurs provenants des requêtes vers OpenAgenda: <b>${formatNumber(stats.oaRequestErrors)}</b></li>`
-                      : '' %>
-                  </ul>
-                </mj-accordion-text>
-              <% } %>
-            </mj-accordion-element>
-          <% } %>
-        </mj-accordion>
+                    <% if (totalErrors > 0) { %>
+                      <br />
+                      <span class="error">
+                  Avec un total de <b><%- formatNumber(totalErrors) %></b> erreur<%- totalErrors > 1 ? 's' : '' %>.
+                </span>
+                    <% } %>
+                  </small>
+                </mj-accordion-title>
+                <% if (agendaStats.eventListError) { %>
+                  <mj-accordion-text color="#e74c3c" padding="10px 25px 10px 25px">
+                    <%= JSON.stringify(agendaStats.eventListError) %>
+                  </mj-accordion-text>
+                <% } else { %>
+                  <mj-accordion-text padding="10px 0 10px 0">
+                    <ul>
+                      <%- agendaStats.savedEvents
+                        ? `<li>Événements présents dans la source: <b>${formatNumber(agendaStats.savedEvents)}</b></li>`
+                        : '<li>Aucun événement présent dans la source.</li>' %>
+                      <%- agendaStats.eventsWithoutLocation
+                        ? `<li>Événements sans lieu: <b>${formatNumber(agendaStats.eventsWithoutLocation)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.splitSourceLocations
+                        ? `<li>Événements de la source distribués sur plusieurs événements (plusieurs lieux): <b>${formatNumber(agendaStats.splitSourceLocations)}</b> -> <b>${formatNumber(agendaStats.splittedSourceLocations)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.mergedSourceEvents
+                        ? `<li>Événements de la source fusionnés: <b>${formatNumber(agendaStats.mergedSourceEvents)}</b> -> <b>${formatNumber(agendaStats.mergedEvents)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.splitSourceEvents
+                        ? `<li>Événements de la source distribués sur plusieurs événements (horaires): <b>${formatNumber(agendaStats.splitSourceEvents)}</b> -> <b>${formatNumber(agendaStats.splittedSourceEvents)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.ignoredEvents
+                        ? `<li>Événements ignorés: <b>${formatNumber(agendaStats.ignoredEvents)}</b>`
+                        : `` %>
+                      <%- agendaStats.upToDateEvents
+                        ? `<li>Événements déjà à jour: <b>${formatNumber(agendaStats.upToDateEvents)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.createdEvents ? `<li>Événements créés: <b>${formatNumber(agendaStats.createdEvents)}</b></li>` : '' %>
+                      <%- agendaStats.recreatedEvents
+                        ? `<li>Événements re-créés: <b>${formatNumber(agendaStats.recreatedEvents)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.updatedEvents
+                        ? `<li>Événements mis à jour: <b>${formatNumber(agendaStats.updatedEvents)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.invalidImages
+                        ? `<li>Images invalides détectées: <b>${formatNumber(agendaStats.invalidImages)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.createdLocations ? `<li>Lieux créés: <b>${formatNumber(agendaStats.createdLocations)}</b></li>` : '' %>
+
+                      <%- agendaStats.sourceErrors && agendaStats.sourceErrors.missingTimings && agendaStats.sourceErrors.missingTimings.length
+                        ? `<li class="error">Événements de la source sans horaire: <b>${formatNumber(agendaStats.sourceErrors.missingTimings.length)}</b><br />${agendaStats.sourceErrors.missingTimings.join(
+                          ', ')}</li>`
+                        : '' %>
+                      <%- agendaStats.sourceErrors && agendaStats.sourceErrors.missingLocation && agendaStats.sourceErrors.missingLocation.length
+                        ? `<li class="error">Événements de la source sans lieu: <b>${formatNumber(agendaStats.sourceErrors.missingLocation.length)}</b><br />${agendaStats.sourceErrors.missingLocation.join(
+                          ', ')}</li>`
+                        : '' %>
+                      <%- agendaStats.sourceErrors && agendaStats.sourceErrors.validationError && agendaStats.sourceErrors.validationError.length
+                        ? `<li class="error">Événements invalides: <b>${formatNumber(agendaStats.sourceErrors.validationError.length)}</b><br />${agendaStats.sourceErrors.validationError.join(
+                          ', ')}</li>`
+                        : '' %>
+                      <%- agendaStats.locationErrors
+                        ? `<li class="error">Erreurs lors de la récupération du lieu: <b>${formatNumber(agendaStats.locationErrors)}</b></li>`
+                        : '' %>
+                      <%- agendaStats.oaRequestErrors
+                        ? `<li class="error">Erreurs provenants des requêtes vers OpenAgenda: <b>${formatNumber(agendaStats.oaRequestErrors)}</b></li>`
+                        : '' %>
+                    </ul>
+                  </mj-accordion-text>
+                <% } %>
+              </mj-accordion-element>
+            <% } %>
+          </mj-accordion>
+        <% } %>
       </mj-column>
     </mj-section>
   </mj-body>

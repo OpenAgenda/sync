@@ -4,22 +4,24 @@ const VError = require('@openagenda/verror');
 const createOaEvent = require('./lib/createOaEvent');
 const upStats = require('./lib/upStats');
 
-module.exports = async function recreateEvent(params, {
+module.exports = async function recreateEvent(context, {
+  agendaUid,
   itemToUpdate,
   syncEvent,
   event,
-  catchError,
-  startSyncDate,
 }) {
   const {
     oa,
     syncDb,
-    agendaUid,
     noBailOnInvalidImage,
     defaultImageUrl,
     simulate,
     stats,
-  } = params;
+    catchError,
+  } = context;
+  const { startSyncDate } = stats;
+
+  const agendaStats = stats.agendas[agendaUid];
 
   try {
     if (!simulate) {
@@ -38,13 +40,14 @@ module.exports = async function recreateEvent(params, {
       );
 
       await syncDb.events.insert({
+        agendaUid,
         correspondenceId: itemToUpdate.correspondenceId,
         syncedAt: new Date(),
         data: createdEvent,
       });
     }
 
-    upStats(stats, 'recreatedEvents');
+    upStats(agendaStats, 'recreatedEvents');
   } catch (e) {
     const error = new VError({
       cause: e,
@@ -56,7 +59,7 @@ module.exports = async function recreateEvent(params, {
       },
     });
 
-    upStats(stats, 'eventRecreateErrors', error);
+    upStats(agendaStats, 'eventRecreateErrors', error);
     catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
   }
 };

@@ -4,27 +4,41 @@ const VError = require('@openagenda/verror');
 const _ = require('lodash');
 const upStats = require('./lib/upStats');
 const potentialOaError = require('./utils/potentialOaError');
+const getAgenda = require('./lib/getAgenda');
 
-module.exports = async function deleteEvent(params, {
+module.exports = async function deleteEvent(context, {
   list,
   index,
-  catchError,
-  startSyncDate,
 }) {
   const {
     oa,
     syncDb,
-    agendaUid,
+    publicKey,
     simulate,
     log,
     stats,
-  } = params;
+    agendaMap,
+    catchError,
+  } = context;
+  const { startSyncDate } = stats;
 
   const eventToRemove = list[index];
+  const { agendaUid } = eventToRemove;
+
+  const agendaStats = stats.agendas[agendaUid];
 
   try {
+    if (!agendaMap[agendaUid]) {
+      agendaMap[agendaUid] = {
+        agenda: await getAgenda(agendaUid, publicKey)
+          .catch(err => {
+            throw new VError(err, `Can\'t get agenda ${agendaUid}`);
+          }),
+      };
+    }
+
     if (!simulate) {
-      await potentialOaError(oa.events.delete(agendaUid, eventToRemove.data.uid)
+      await potentialOaError(oa.events.delete(eventToRemove.data.agendaUid, eventToRemove.data.uid)
         .catch(e => {
           if ( // already removed on OA
             !_.isMatch(e?.response, {
@@ -43,18 +57,17 @@ module.exports = async function deleteEvent(params, {
 
     log('info', 'REMOVE EVENT', { oaEventUid: eventToRemove.data.uid });
 
-    upStats(stats, 'removedEvents');
+    upStats(agendaStats, 'removedEvents');
   } catch (e) {
     const error = new VError({
       cause: e,
-      message: 'Error on event remove',
       info: {
         oaEventUid: eventToRemove.data.uid,
         eventToRemove
       }
-    });
+    }, 'Error on event remove');
 
-    upStats(stats, 'eventRemoveErrors', error);
+    upStats(agendaStats, 'eventRemoveErrors', error);
     catchError(error, `${startSyncDate.toISOString()}:${eventToRemove.data.uid}.json`);
   }
 };

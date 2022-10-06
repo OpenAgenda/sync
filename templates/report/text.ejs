@@ -1,6 +1,9 @@
 Rapport de synchronisation
 
-<% for (const { agenda, stats } of data) { %>
-<%= agenda.title %>:
-<%- JSON.stringify(stats, null, 2) %>
+
+<% for (const section of data) { %>
+  <% for (const agendaStats of section.stats) { %>
+    <%= agendaStats.agenda.title %>:
+    <%- JSON.stringify(agendaStats, null, 2) %>
+  <% } %>
 <% } %>

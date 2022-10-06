@@ -4,23 +4,25 @@ const potentialOaError = require('./utils/potentialOaError');
 const _ = require('lodash');
 const upStats = require('./lib/upStats');
 const VError = require('@openagenda/verror');
-module.exports = async function removeFalsyEvent(params, {
+
+module.exports = async function removeFalsyEvent(context, {
+  agendaUid,
   list,
   index,
   syncEvent,
   event,
-  catchError,
-  startSyncDate,
 }) {
   const {
     oa,
     syncDb,
-    agendaUid,
     simulate,
     log,
     stats,
-  } = params;
+    catchError,
+  } = context;
+  const { startSyncDate } = stats;
 
+  const agendaStats = stats.agendas[agendaUid];
   const itemToUpdate = list[index];
 
   try {
@@ -28,6 +30,7 @@ module.exports = async function removeFalsyEvent(params, {
       'info',
       `REMOVE falsy event ${index + 1}/${list.length}`,
       {
+        agendaUid,
         eventId: itemToUpdate.eventId,
         locationId: itemToUpdate.locationId,
       },
@@ -50,20 +53,19 @@ module.exports = async function removeFalsyEvent(params, {
 
       await syncDb.events.remove({ _id: syncEvent._id }, {});
 
-      upStats(stats, 'removedFalsyEvents');
+      upStats(agendaStats, 'removedFalsyEvents');
     }
   } catch (e) {
     const error = new VError({
       cause: e,
-      message: 'Error on event remove (after event.postMap)',
       info: {
         correspondenceId: itemToUpdate.correspondenceId,
         event,
         itemToUpdate,
       },
-    });
+    }, 'Error on event remove (after event.postMap)');
 
-    upStats(stats, 'eventFalsyRemoveErrors', error);
+    upStats(agendaStats, 'eventFalsyRemoveErrors', error);
     catchError(error, `${startSyncDate.toISOString()}:${itemToUpdate.correspondenceId}:${i}.json`);
   }
 };
