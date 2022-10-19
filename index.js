@@ -99,7 +99,7 @@ module.exports = async function syncTask(options) {
 
   const { directory, log } = params;
 
-  await fs.rm(path.join(directory, 'data'), { recursive: true });
+  await fs.rm(path.join(directory, 'data'), { recursive: true, force: true });
 
   await mkdirp(path.join(directory, 'data'));
   await mkdirp(path.join(directory, 'errors'));

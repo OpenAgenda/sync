@@ -39,14 +39,8 @@ module.exports = async function removeFalsyEvent(context, {
     if (!simulate) {
       await potentialOaError(oa.events.delete(agendaUid, syncEvent.data.uid)
         .catch(e => {
-          if ( // already removed on OA
-            !_.isMatch(e?.response, {
-              status: 404,
-              data: {
-                error: 'event not found',
-              },
-            })
-          ) {
+          // already removed on OA
+          if (e?.response?.status !== 404) {
             throw e;
           }
         }));

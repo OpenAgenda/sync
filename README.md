@@ -254,13 +254,14 @@ Au moment de l'appel, la concatenation des horaires a déjà eu lieu. `event.pos
 Toulouse Métropole a une notion d'"Evénement ponctuel": si un événmeent se déroule sur une période de moins de 8 jours, la valeur doit être "vraie".
 
 ```js
-postMap(event, formSchema)
+postMap(event, formSchema, options)
 ```
 
 Arguments:
 
 * `event`: l'événement fourni par `event.map`
 * `formSchema`: le schema de l'agenda, pour définir les champs personnalisés
+* `options`: un object avec `isCreate` pour une création et `isUpdate` pour une mise à jour
 
 
 # Supprimer des entrées générées par le script

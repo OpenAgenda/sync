@@ -4,6 +4,7 @@ const _ = require('lodash');
 const VError = require('@openagenda/verror');
 const upStats = require('./lib/upStats');
 const createOaEvent = require('./lib/createOaEvent');
+const UPDATE_METHOD = require('./updateMethod');
 
 module.exports = async function createEvent(context, {
   agendaUid,
@@ -39,11 +40,28 @@ module.exports = async function createEvent(context, {
 
     try {
       const postMapContext = methods.event.postMap.createContext({ ...context, agendaUid });
-      ({ result: event } = await methods.event.postMap(event, formSchema, postMapContext));
+      ({ result: event } = await methods.event.postMap(
+        event,
+        formSchema,
+        {
+          isUpdate: false,
+          isCreate: true,
+        }, postMapContext,
+      ));
+
+      const method = event[UPDATE_METHOD] || 'update';
 
       if (!event) {
         upStats(agendaStats, 'ignoredEvents');
         continue;
+      }
+
+      if (method === 'patch') {
+        event = {
+          ...itemToCreate.data,
+          timings,
+          ...event
+        };
       }
 
       log(

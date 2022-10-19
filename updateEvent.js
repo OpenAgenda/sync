@@ -10,6 +10,7 @@ const createOaEvent = require('./lib/createOaEvent');
 const upStats = require('./lib/upStats');
 const castTimings = require('./utils/castTimings');
 const potentialOaError = require('./utils/potentialOaError');
+const UPDATE_METHOD = require('./updateMethod');
 
 module.exports = async function updateEvent(context, {
   agendaUid,
@@ -100,7 +101,16 @@ module.exports = async function updateEvent(context, {
 
       try {
         const postMapContext = methods.event.postMap.createContext({ ...context, agendaUid });
-        ({ result: event } = await methods.event.postMap(event, formSchema, postMapContext));
+        ({ result: event } = await methods.event.postMap(
+          event,
+          formSchema,
+          {
+            isUpdate: true,
+            isCreate: false,
+          }, postMapContext,
+        ));
+
+        const method = event[UPDATE_METHOD] || 'update';
 
         if (!event) {
           await removeFalsyEvent(context, {
@@ -119,6 +129,7 @@ module.exports = async function updateEvent(context, {
           `UPDATE EVENT ${index + 1}/${list.length}`,
           {
             agendaUid,
+            method,
             eventId: itemToUpdate.eventId,
             locationId: itemToUpdate.locationId
           }
@@ -138,6 +149,7 @@ module.exports = async function updateEvent(context, {
           const updatedEvent = await updateOaEvent(
             syncEvent.data.uid,
             event,
+            method,
             {
               oa,
               agendaUid,
@@ -189,12 +201,29 @@ module.exports = async function updateEvent(context, {
 
       try {
         const postMapContext = methods.event.postMap.createContext({ ...context, agendaUid });
-        ({ result: event } = await methods.event.postMap(event, formSchema, postMapContext));
+        ({ result: event } = await methods.event.postMap(
+          event,
+          formSchema,
+          {
+            isUpdate: true,
+            isCreate: false,
+          }, postMapContext,
+        ));
+
+        const method = event[UPDATE_METHOD] || 'update';
 
         if (!event) {
           upStats(agendaStats, 'ignoredEvents');
 
           continue;
+        }
+
+        if (method === 'patch') {
+          event = {
+            ...itemToUpdate.data,
+            timings,
+            ...event
+          };
         }
 
         log(
@@ -203,7 +232,7 @@ module.exports = async function updateEvent(context, {
           {
             agendaUid,
             eventId: itemToUpdate.eventId,
-            locationId: itemToUpdate.locationId
+            locationId: itemToUpdate.locationId,
           }
         );
 
@@ -251,14 +280,8 @@ module.exports = async function updateEvent(context, {
       if (!simulate) {
         await potentialOaError(oa.events.delete(agendaUid, syncEvent.data.uid)
           .catch(e => {
-            if ( // already removed on OA
-              !_.isMatch(e?.response, {
-                status: 404,
-                data: {
-                  error: 'event not found'
-                }
-              })
-            ) {
+            // already removed on OA
+            if (e?.response?.status !== 404) {
               throw e;
             }
           }));

@@ -23,7 +23,7 @@ module.exports = async function deleteEvent(context, {
   const { startSyncDate } = stats;
 
   const eventToRemove = list[index];
-  const { agendaUid } = eventToRemove;
+  const { agendaUid } = eventToRemove.data;
 
   const agendaStats = stats.agendas[agendaUid];
 
@@ -38,16 +38,10 @@ module.exports = async function deleteEvent(context, {
     }
 
     if (!simulate) {
-      await potentialOaError(oa.events.delete(eventToRemove.data.agendaUid, eventToRemove.data.uid)
+      await potentialOaError(oa.events.delete(agendaUid, eventToRemove.data.uid)
         .catch(e => {
-          if ( // already removed on OA
-            !_.isMatch(e?.response, {
-              status: 404,
-              data: {
-                error: 'event not found'
-              }
-            })
-          ) {
+          // already removed on OA
+          if (e?.response?.status !== 404) {
             throw e;
           }
         }));
@@ -62,6 +56,7 @@ module.exports = async function deleteEvent(context, {
     const error = new VError({
       cause: e,
       info: {
+        agendaUid: eventToRemove.data.agendaUid,
         oaEventUid: eventToRemove.data.uid,
         eventToRemove
       }

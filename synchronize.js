@@ -93,7 +93,7 @@ module.exports = async function synchronize(params) {
         filterTimings(),
         transformFlatTimings(flatTimingDuration),
         catchInvalidImage(),
-      ]).params('event', 'formSchema'),
+      ]).params('event', 'formSchema', 'options'),
     });
 
     hooks(methods.location, {
