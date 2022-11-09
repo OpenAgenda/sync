@@ -11,6 +11,7 @@ module.exports = async function deleteEvent(context, {
   index,
 }) {
   const {
+    methods,
     oa,
     syncDb,
     publicKey,
@@ -35,6 +36,13 @@ module.exports = async function deleteEvent(context, {
             throw new VError(err, `Can\'t get agenda ${agendaUid}`);
           }),
       };
+    }
+
+    const shouldRemove = await methods.event.shouldRemove(eventToRemove);
+
+    if (!shouldRemove) {
+      log('info', 'SKIP REMOVE', { oaEventUid: eventToRemove.data.uid });
+      return;
     }
 
     if (!simulate) {

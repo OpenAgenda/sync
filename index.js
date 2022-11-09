@@ -11,6 +11,7 @@ const statsUtil = require('./lib/stats');
 const defaultGetLocation = (locationId, eventLocation) => eventLocation;
 const defaultGetEventUpdatedDate = () => new Date();
 const defaultPostMapEvent = event => event;
+const defaultShouldRemoveEvent = () => true;
 
 /*
 * créer une méthode `event.list(offset, limit)`
@@ -89,10 +90,11 @@ module.exports = async function syncTask(options) {
     methods: {
       event: {
         getEventUpdatedDate: defaultGetEventUpdatedDate,
-        postMap: defaultPostMapEvent
+        postMap: defaultPostMapEvent,
+        shouldRemove: defaultShouldRemoveEvent,
       },
       location: {
-        get: defaultGetLocation
+        get: defaultGetLocation,
       },
     }
   }, options);

@@ -219,6 +219,18 @@ Arguments:
 
  * `event`: fourni par `event.list`
 
+### event.shouldRemove (event.js)
+
+`event.shouldRemove` confirme ou non si un événement peut être supprimer, la fonction doit retourner `true` ou `false`;
+
+```js
+shouldRemove(event)
+```
+
+Arguments:
+
+ * `event`: fourni par la base de données locale, c'est l'événement OpenAgenda créé ou modifié par le script
+
 ### location.getId (location.js)
 
 Doit retourner un identifiant de lieu unique utilisé par la suite par `location.map`
