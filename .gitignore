@@ -11,3 +11,4 @@ dist/
 src/**/data
 src/**/db
 src/**/logs
+*.code-workspace
