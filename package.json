@@ -1,6 +1,6 @@
 {
   "name": "@openagenda/sync",
-  "version": "5.2.3",
+  "version": "5.2.4",
   "main": "index.js",
   "repository": "git@github.com:Oagenda/sync.git",
   "author": "Bertho <kevin.bertho@gmail.com>",
@@ -13,7 +13,7 @@
     "@feathersjs/hooks": "^0.7.5",
     "@openagenda/logs": "^1.1.2",
     "@openagenda/mails": "^3.0.1",
-    "@openagenda/sdk-js": "^2.0.2",
+    "@openagenda/sdk-js": "^2.0.3",
     "@openagenda/verror": "^3.0.0",
     "axios": "^0.19.2",
     "core-js": "^3.19.1",
