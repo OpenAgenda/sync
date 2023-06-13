@@ -6,7 +6,7 @@ const { inspect } = require('util');
 const Nedb = require('nedb');
 const moment = require('moment');
 const stringify = require('json-stringify-safe');
-const OaSdk = require('@openagenda/sdk-js');
+const { OaSdk } = require('@openagenda/sdk-js');
 const { hooks, middleware, HOOKS } = require('@feathersjs/hooks');
 const promisifyStore = require('./utils/promisifyStore');
 
