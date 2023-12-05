@@ -76,7 +76,7 @@ module.exports = async function dispatchEvent(context, filename) {
   let agendaUid;
 
   try {
-    agendaUid = await getAgendaUid(event);
+    agendaUid = parseInt(await getAgendaUid(event));
 
     if (!agendaUid) {
       throw new VError('This event don\'t have agenda for dispatch');
