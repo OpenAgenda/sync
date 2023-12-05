@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const cleanImageURL = require('./cleanImageURL');
 
-module.exports = function isURL200(url) {
+module.exports = async function isURL200(url) {
   if (!url) {
     return false;
   }
@@ -16,7 +16,14 @@ module.exports = function isURL200(url) {
   } catch (e) {
     return false;
   }
-  return axios.head(cleanURL)
-    .then(({ status }) => status === 200)
-    .catch(() => false);
+
+  try {
+    return (await axios.head(cleanURL)).status === 200;
+  } catch (e) {}
+
+  try {
+    return (await axios.get(cleanURL)).status === 200;
+  } catch (e) {}
+
+  return false;
 }
