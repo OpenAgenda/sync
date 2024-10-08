@@ -140,7 +140,7 @@ module.exports = async function dispatchEvent(context, filename) {
     eventLocations = mappedEvent.locations;
     delete mappedEvent.locations;
 
-    if (eventLocations.length === 0) {
+    if (eventLocations.length === 0 && (mappedEvent.attendanceMode !== 2)) {
       throw new SourceError('Missing location');
     }
   } catch (e) {
@@ -199,8 +199,11 @@ module.exports = async function dispatchEvent(context, filename) {
 
     const data = {
       ...mappedEvent,
-      locationUid: location.uid
     };
+
+    if (location?.uid) {
+      data.locationUid = location.uid;
+    }
 
     const correspondenceId = `${eventId}.${locationId}`;
 
