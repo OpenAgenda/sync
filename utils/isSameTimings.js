@@ -1,7 +1,7 @@
 'use strict';
 
 const _ = require('lodash');
-const castTimings = require('./utils/castTimings');
+const castTimings = require('./castTimings');
 
 module.exports = (syncTimings, itemToUpdateTimings) => {
   return _.isEqual(
