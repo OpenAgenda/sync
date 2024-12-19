@@ -8,9 +8,9 @@ const recreateEvent = require('./recreateEvent');
 const updateOaEvent = require('./lib/updateOaEvent');
 const createOaEvent = require('./lib/createOaEvent');
 const upStats = require('./lib/upStats');
-const castTimings = require('./utils/castTimings');
 const potentialOaError = require('./utils/potentialOaError');
 const UPDATE_METHOD = require('./updateMethod');
+const isSameTimings = require('./utils/isSameTimings');
 
 module.exports = async function updateEvent(context, {
   agendaUid,
@@ -51,10 +51,8 @@ module.exports = async function updateEvent(context, {
     (result, value) => moment(value.syncedAt).isBefore(moment(result)) ? value.syncedAt : result,
     syncEvents[0].syncedAt
   );
-  const sameTimings = _.isEqual(
-    _.orderBy(_.flatten(syncEvents.map(v => v.data.timings)), ['begin', 'end']),
-    _.orderBy(castTimings(itemToUpdate.data.timings), ['begin', 'end'])
-  );
+
+  const sameTimings = isSameTimings(syncEvents.map(v => v.data.timings), itemToUpdate.data.timings);
 
   const needUpdate = forceUpdateOption || moment(newestEventUpdatedDate).isAfter(olderSyncedAt);
 
