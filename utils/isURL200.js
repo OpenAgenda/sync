@@ -2,27 +2,27 @@
 
 const axios = require('axios');
 
-const cleanImageURL = require('./cleanImageURL');
+const cleanURL = require('./cleanURL');
 
 module.exports = async function isURL200(url) {
   if (!url) {
     return false;
   }
 
-  let cleanURL;
+  let clean;
 
   try {
-    cleanURL = cleanImageURL(url);
+    clean = cleanURL(url);
   } catch (e) {
     return false;
   }
 
   try {
-    return (await axios.head(cleanURL)).status === 200;
+    return (await axios.head(clean)).status === 200;
   } catch (e) {}
 
   try {
-    return (await axios.get(cleanURL)).status === 200;
+    return (await axios.get(clean)).status === 200;
   } catch (e) {}
 
   return false;

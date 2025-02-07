@@ -276,33 +276,11 @@ Arguments:
 * `options`: un object avec `isCreate` pour une création et `isUpdate` pour une mise à jour
 
 
-# Supprimer des entrées générées par le script
+## Utilitaires
 
-Cerner les événements concernés par un where sur event & review_article
+Accessibles soit par require sur utils, soit par require direct. Voir les tests pour des exemples d'utilisation: test/nomDeLutil.utils.test.js
 
-    ... where ra.review_id=13115 and e.owner_id=27554 and e.created_at > '2018-03-21' and e.created_at < '2018-03-22' and e.store='{"customFields":{"entreelibre":[]}}'
-
-1. Virer les références agenda_event:
-
-    delete ae
-    from agenda_event as ae
-    left join event as e on ae.event_uid=e.uid
-    left join review_article as ra on e.id=ra.event_id
-    where ra.review_id=13115 and e.owner_id=27554 and e.created_at > '2018-03-21' and e.created_at < '2018-03-22' and e.store='{"customFields":{"entreelibre":[]}}'
-
-2. Virer les références event_2:
-
-    delete e2
-    from event_2 as e2
-    left join event as e on e2.uid=e.uid
-    left join review_article as ra on e.id=ra.event_id
-    where ra.review_id=13115 and e.owner_id=27554 and e.created_at > '2018-03-21' and e.created_at < '2018-03-22' and e.store='{"customFields":{"entreelibre":[]}}'
-
-3. Virer les références event:
-
-    delete e
-    from event as e
-    left join review_article as ra on e.id=ra.event_id
-    where ra.review_id=13115 and e.owner_id=27554 and e.created_at > '2018-03-21' and e.created_at < '2018-03-22' and e.store='{"customFields":{"entreelibre":[]}}'
-
-Faire un legacySync de l'agenda
+ * **isURL200**: Fait l'encodage utile sur un URL présentant une ressource à télécharger, en amont de sont téléchargement.
+ * **HTMLToText**: Convertit de l'HTML en texte.
+ * **markdownToText**: Convertit du markdown en texte.
+ * **convertToTextAndTruncate**: Convertit et tronque.

@@ -5,7 +5,7 @@ function getURLEncoded(sURL) {
   return getURLEncoded(decodeURI(sURL))
 }
 
-module.exports = function cleanImageURL(dirty) {
+module.exports = function cleanURL(dirty) {
   try {
     return getURLEncoded(dirty)
   } catch (e) {
