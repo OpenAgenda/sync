@@ -6,6 +6,7 @@ const { inspect } = require('util');
 const Nedb = require('nedb');
 const moment = require('moment');
 const stringify = require('json-stringify-safe');
+const sanitizeFilename = require('sanitize-filename');
 const { OaSdk } = require('@openagenda/sdk-js');
 const { hooks, middleware, HOOKS } = require('@feathersjs/hooks');
 const promisifyStore = require('./utils/promisifyStore');
@@ -65,7 +66,7 @@ module.exports = async function synchronize(params) {
     log('error', error);
 
     writeFileSync(
-      path.join(directory, 'errors', filename),
+      path.join(directory, 'errors', sanitizeFilename(filename)),
       stringify(error, null, 2)
     );
   }

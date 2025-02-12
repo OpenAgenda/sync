@@ -12,3 +12,11 @@ src/**/data
 src/**/db
 src/**/logs
 *.code-workspace
+
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
