@@ -8,21 +8,21 @@ const moment = require('moment');
 const stringify = require('json-stringify-safe');
 const sanitizeFilename = require('sanitize-filename');
 const { OaSdk } = require('@openagenda/sdk-js');
+const axiosErrorInterceptor = require('@openagenda/sync/utils/axiosErrorInterceptor');
 const { hooks, middleware, HOOKS } = require('@feathersjs/hooks');
 const promisifyStore = require('./utils/promisifyStore');
 const migrate = require('./migrations');
 const listSavedEvents = require('./lib/listSavedEvents');
+const downloadSourceEvents = require('./downloadSourceEvents');
 const dispatchEvent = require('./dispatchEvent');
 const createEvent = require('./createEvent');
 const updateEvent = require('./updateEvent');
 const deleteEvent = require('./deleteEvent');
-
 const filterTimings = require('./hooks/filterTimings');
 const throwMissingTimings = require('./hooks/throwMissingTimings');
 const transformFlatTimings = require('./hooks/transformFlatTimings');
 const addDefaultCountryCode = require('./hooks/addDefaultCountryCode');
 const catchInvalidImage = require('./hooks/catchInvalidImage');
-const downloadSourceEvents = require('./downloadSourceEvents');
 
 module.exports = async function synchronize(params) {
   const {
@@ -68,6 +68,11 @@ module.exports = async function synchronize(params) {
   await migrate({ syncDb, log });
 
   const oa = new OaSdk({ secretKey });
+
+  oa.api.interceptors.response.use(
+    response => response,
+    axiosErrorInterceptor,
+  );
 
   function catchError(error, filename) {
     log('error', error);

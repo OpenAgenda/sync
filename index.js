@@ -4,14 +4,21 @@ const fs = require('fs/promises');
 const path = require('path');
 const _ = require('lodash');
 const mkdirp = require('mkdirp');
+const axios = require('axios');
 const synchronize = require('./synchronize');
 const statsUtil = require('./lib/stats');
+const axiosErrorInterceptor = require('./utils/axiosErrorInterceptor');
 
 // Defauts
 const defaultGetLocation = (locationId, eventLocation) => eventLocation;
 const defaultGetEventUpdatedDate = () => new Date();
 const defaultPostMapEvent = event => event;
 const defaultShouldRemoveEvent = () => true;
+
+axios.interceptors.response.use(
+  response => response,
+  axiosErrorInterceptor,
+);
 
 /*
 * créer une méthode `event.list(offset, limit)`
