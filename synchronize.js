@@ -10,7 +10,7 @@ const sanitizeFilename = require('sanitize-filename');
 const { OaSdk } = require('@openagenda/sdk-js');
 const { hooks, middleware, HOOKS } = require('@feathersjs/hooks');
 const promisifyStore = require('./utils/promisifyStore');
-
+const migrate = require('./migrations');
 const listSavedEvents = require('./lib/listSavedEvents');
 const dispatchEvent = require('./dispatchEvent');
 const createEvent = require('./createEvent');
@@ -51,14 +51,21 @@ module.exports = async function synchronize(params) {
     events: promisifyStore(new Nedb({
       filename: path.join(directory, 'db', 'events.nedb'),
       timestampData: true,
-      autoload: true
+      autoload: true,
     })),
     locations: promisifyStore(new Nedb({
       filename: path.join(directory, 'db', 'locations.nedb'),
       timestampData: true,
-      autoload: true
-    }))
+      autoload: true,
+    })),
+    migrations: promisifyStore(new Nedb({
+      filename: path.join(directory, 'db', 'migrations.nedb'),
+      // timestampData: true,
+      autoload: true,
+    })),
   };
+
+  await migrate({ syncDb, log });
 
   const oa = new OaSdk({ secretKey });
 
