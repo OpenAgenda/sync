@@ -284,3 +284,9 @@ Accessibles soit par require sur utils, soit par require direct. Voir les tests 
  * **HTMLToText**: Convertit de l'HTML en texte.
  * **markdownToText**: Convertit du markdown en texte.
  * **convertToTextAndTruncate**: Convertit et tronque.
+
+## Migrer de la v4 à la v5
+
+- La méthode `event.list` ne reçoit plus `query` en premier argument.
+- La méthode `location.map` reçoit maintenant 2 arguments (`input` et `eventLocation`), elle donnait uniquement `eventLocation` pour la v4.
+- La config attend une méthode `getAgendaUid` à la place de `agendaUid`.
